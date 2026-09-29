@@ -115,6 +115,33 @@ build/app/outputs/flutter-apk/app-release.apk
 
 Build Number หลังเครื่องหมาย `+` จะเพิ่มขึ้น 1 ทุกครั้ง เช่น `1.0.0+1 → 1.0.1+2` หาก build ไม่สำเร็จ สคริปต์จะคืนค่าเวอร์ชันเดิมให้อัตโนมัติ
 
+### Git Branch ตามประเภทเวอร์ชัน
+
+ทุกงานใช้ branch ใหม่จาก `main` โดยตั้งชื่อตามประเภทและเวอร์ชัน:
+
+```text
+major/v2.0.0
+feature/v1.1.0
+hotfix/v1.0.1
+```
+
+หลังแก้ไขและ build เสร็จ ให้กลับมาที่ `main` แล้วใช้สคริปต์ publish:
+
+```powershell
+.\publish-git.ps1 -VersionType feature -Message "Add new dashboard feature"
+```
+
+สคริปต์จะอ่านเวอร์ชันจาก `pubspec.yaml`, สร้าง branch ใหม่, commit การเปลี่ยนแปลงทั้งหมด และ push ขึ้น `origin` จากนั้นให้สร้าง Pull Request เพื่อ review และ merge เข้า `main`
+
+ตัวอย่างประเภทอื่น:
+
+```powershell
+.\publish-git.ps1 -VersionType major -Message "Release version 2"
+.\publish-git.ps1 -VersionType hotfix -Message "Fix amount input"
+```
+
+Branch ชื่อเดิมจะไม่ถูกนำกลับมาใช้ซ้ำ หากต้องอัปเดตเวอร์ชันเดิมอีกครั้งควรเพิ่มเลขเวอร์ชันก่อน publish
+
 สคริปต์จะสร้างไฟล์:
 
 ```text
