@@ -1,0 +1,95 @@
+name: Build Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: Android build mode
+        required: true
+        type: choice
+        options:
+          - release
+          - debug
+        default: release
+  push:
+    branches:
+      - main
+      - "major/**"
+      - "feature/**"
+      - "hotfix/**"
+    paths-ignore:
+      - "**/*.md"
+
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-android:
+    name: Build Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Analyze source
+        run: flutter analyze
+
+      - name: Run tests
+        run: flutter test
+
+      - name: Read build settings
+        id: app
+        shell: bash
+        run: |
+          VERSION=$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)
+          MODE="${{ inputs.mode }}"
+          if [ -z "$MODE" ]; then
+            MODE=release
+          fi
+          if [ -z "$VERSION" ]; then
+            echo "Unable to read version from pubspec.yaml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+
+      - name: Build APK
+        run: flutter build apk --${{ steps.app.outputs.mode }}
+
+      - name: Rename APK
+        shell: bash
+        run: |
+          SOURCE="build/app/outputs/flutter-apk/app-${{ steps.app.outputs.mode }}.apk"
+          TARGET="build/app/outputs/flutter-apk/monthly-flow-${{ steps.app.outputs.mode }}-${{ steps.app.outputs.version }}.apk"
+          if [ ! -f "$SOURCE" ]; then
+            echo "APK not found: $SOURCE"
+            exit 1
+          fi
+          cp "$SOURCE" "$TARGET"
+
+      - name: Upload Android artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-flow-android-${{ steps.app.outputs.mode }}-${{ steps.app.outputs.version }}
+          path: build/app/outputs/flutter-apk/monthly-flow-${{ steps.app.outputs.mode }}-${{ steps.app.outputs.version }}.apk
+          if-no-files-found: error
+          retention-days: 14
