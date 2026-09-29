@@ -1,0 +1,37 @@
+name: monthly_flow
+description: Offline monthly income and expense tracker.
+publish_to: none
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_localizations:
+    sdk: flutter
+  intl: ^0.20.2
+  sqflite: ^2.4.4
+  path_provider: ^2.1.5
+  share_plus: ^11.1.0
+  file_picker: ^10.3.3
+  image_picker: ^1.2.0
+  crypto: ^3.0.7
+  fl_chart: ^1.2.0
+  flutter_animate: ^4.5.2
+  lucide_icons_flutter: ^3.1.20
+  skeletonizer: ^3.0.0
+  pinput: ^6.0.2
+  currency_text_input_formatter: ^2.3.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+flutter:
+  uses-material-design: true
+  fonts:
+    - family: NotoSansThaiLooped
+      fonts:
+        - asset: assets/fonts/NotoSansThaiLooped-Variable.ttf

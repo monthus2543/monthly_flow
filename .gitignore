@@ -1,0 +1,13 @@
+.dart_tool/
+.flutter-plugins*
+.metadata
+build/
+android/.gradle/
+android/.kotlin/
+*.iml
+.idea/
+android/local.properties
+ios/Flutter/Generated.xcconfig
+ios/Flutter/flutter_export_environment.sh
+ios/Flutter/ephemeral/
+.DS_Store
