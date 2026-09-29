@@ -1,0 +1,69 @@
+name: Build iOS
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - "major/**"
+      - "feature/**"
+      - "hotfix/**"
+    paths-ignore:
+      - "**/*.md"
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-ios:
+    name: Build iOS (unsigned)
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Show tool versions
+        run: |
+          flutter --version
+          xcodebuild -version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Read app version
+        id: app
+        shell: bash
+        run: |
+          VERSION=$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)
+          if [ -z "$VERSION" ]; then
+            echo "Unable to read version from pubspec.yaml"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Build iOS release without code signing
+        run: flutter build ios --release --no-codesign
+
+      - name: Package Runner.app
+        shell: bash
+        run: |
+          ditto -c -k --sequesterRsrc --keepParent \
+            build/ios/iphoneos/Runner.app \
+            "monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned.zip"
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned
+          path: monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned.zip
+          if-no-files-found: error
+          retention-days: 14
