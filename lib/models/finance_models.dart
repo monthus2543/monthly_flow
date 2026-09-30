@@ -145,6 +145,7 @@ class RecurringRule {
   final String note;
   final bool isActive;
   final String lastGeneratedMonth;
+  final String startMonth;
   const RecurringRule(
       {this.id,
       required this.title,
@@ -155,7 +156,8 @@ class RecurringRule {
       required this.dayOfMonth,
       this.note = '',
       this.isActive = true,
-      this.lastGeneratedMonth = ''});
+      this.lastGeneratedMonth = '',
+      this.startMonth = ''});
   factory RecurringRule.fromMap(Map<String, Object?> map) => RecurringRule(
       id: map['id'] as int,
       title: map['title'] as String,
@@ -166,7 +168,8 @@ class RecurringRule {
       dayOfMonth: map['day_of_month'] as int,
       note: (map['note'] as String?) ?? '',
       isActive: ((map['is_active'] as int?) ?? 1) == 1,
-      lastGeneratedMonth: (map['last_generated_month'] as String?) ?? '');
+      lastGeneratedMonth: (map['last_generated_month'] as String?) ?? '',
+      startMonth: (map['start_month'] as String?) ?? '');
   Map<String, Object?> toMap() => {
         'title': title,
         'amount_minor': amountMinor,
@@ -176,7 +179,8 @@ class RecurringRule {
         'day_of_month': dayOfMonth,
         'note': note,
         'is_active': isActive ? 1 : 0,
-        'last_generated_month': lastGeneratedMonth
+        'last_generated_month': lastGeneratedMonth,
+        'start_month': startMonth
       };
 }
 
@@ -237,3 +241,28 @@ bool sameMonth(DateTime a, DateTime b) =>
 int sumType(Iterable<Entry> rows, String type) => rows
     .where((row) => row.type == type)
     .fold(0, (sum, row) => sum + row.amountMinor);
+
+List<Entry> buildMonthlyEntries(
+    Entry template, DateTime startMonth, int count) {
+  if (count < 1 || count > 120) {
+    throw ArgumentError.value(count, 'count');
+  }
+  return List.generate(count, (index) {
+    final month = DateTime(startMonth.year, startMonth.month + index);
+    final lastDay = DateTime(month.year, month.month + 1, 0).day;
+    return Entry(
+      title: template.title,
+      amountMinor: template.amountMinor,
+      type: template.type,
+      categoryId: template.categoryId,
+      date: DateTime(
+          month.year, month.month, template.date.day.clamp(1, lastDay)),
+      note: template.note,
+      createdAt: template.createdAt + index,
+      updatedAt: template.updatedAt + index,
+      accountId: template.accountId,
+      receiptPath: template.receiptPath,
+      isFavorite: template.isFavorite,
+    );
+  });
+}

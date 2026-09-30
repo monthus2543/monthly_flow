@@ -26,6 +26,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   late final TextEditingController title;
   late final TextEditingController amount;
   late final TextEditingController note;
+  late final TextEditingController numberOfMonths;
   late final FocusNode amountFocus;
   late DateTime date;
   late String type;
@@ -34,6 +35,9 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
   String receiptPath = '';
   bool isFavorite = false;
   bool saving = false;
+  bool repeatMonthly = false;
+  bool noEndDate = false;
+  late DateTime startMonth;
   late final CurrencyTextInputFormatter amountFormatter;
 
   @override
@@ -52,7 +56,17 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             entry == null ? '' : (entry.amountMinor / 100).toStringAsFixed(2));
     amountFocus = FocusNode()..addListener(_handleAmountFocus);
     note = TextEditingController(text: entry?.note ?? '');
-    date = entry?.date ?? DateTime.now();
+    numberOfMonths = TextEditingController(text: '12');
+    final now = DateTime.now();
+    final selectedMonth = widget.store.selectedMonth;
+    final lastDay =
+        DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
+    date = entry?.date ??
+        (sameMonth(now, selectedMonth)
+            ? now
+            : DateTime(selectedMonth.year, selectedMonth.month,
+                now.day.clamp(1, lastDay)));
+    startMonth = DateTime(date.year, date.month);
     type = entry?.type ?? widget.initialType ?? expense;
     categoryId = entry?.categoryId;
     accountId =
@@ -66,6 +80,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     title.dispose();
     amount.dispose();
     note.dispose();
+    numberOfMonths.dispose();
     amountFocus
       ..removeListener(_handleAmountFocus)
       ..dispose();
@@ -99,7 +114,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     setState(() => saving = true);
     try {
       final now = DateTime.now().microsecondsSinceEpoch;
-      await widget.store.save(Entry(
+      final entry = Entry(
           id: widget.existing?.id,
           title: title.text.trim(),
           amountMinor: _minor(amount.text)!,
@@ -111,7 +126,17 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
           updatedAt: now,
           accountId: accountId,
           receiptPath: receiptPath,
-          isFavorite: isFavorite));
+          isFavorite: isFavorite);
+      if (repeatMonthly && widget.existing == null) {
+        if (noEndDate) {
+          await widget.store.saveIndefiniteMonthlyEntry(entry, startMonth);
+        } else {
+          await widget.store.saveMonthlyEntries(
+              entry, startMonth, int.parse(numberOfMonths.text));
+        }
+      } else {
+        await widget.store.save(entry);
+      }
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted)
@@ -148,6 +173,68 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             SnackBar(content: Text(context.l10n.t('delete_failed'))));
     }
   }
+
+  Widget _recurrenceOptions(BuildContext context) => Column(children: [
+        CheckboxListTile(
+            contentPadding: EdgeInsets.zero,
+            controlAffinity: ListTileControlAffinity.leading,
+            title: Text(context.l10n.t('repeat_monthly')),
+            subtitle: Text(context.l10n.t('repeat_monthly_hint')),
+            value: repeatMonthly,
+            onChanged: (value) => setState(() {
+                  repeatMonthly = value ?? false;
+                  if (repeatMonthly) {
+                    startMonth = DateTime(date.year, date.month);
+                  } else {
+                    noEndDate = false;
+                  }
+                })),
+        if (repeatMonthly) ...[
+          OutlinedButton.icon(
+              onPressed: () async {
+                final picked = await showDatePicker(
+                    context: context,
+                    initialDate: startMonth,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100));
+                if (picked != null) {
+                  setState(
+                      () => startMonth = DateTime(picked.year, picked.month));
+                }
+              },
+              icon: const Icon(Icons.date_range_outlined),
+              label: Text(
+                  '${context.l10n.t('start_month')}: ${MaterialLocalizations.of(context).formatMonthYear(startMonth)}')),
+          const SizedBox(height: 12),
+          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Expanded(
+                child: TextFormField(
+                    controller: numberOfMonths,
+                    enabled: !noEndDate,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                        labelText: context.l10n.t('number_of_months')),
+                    validator: (value) {
+                      if (!repeatMonthly || noEndDate) return null;
+                      final parsed = int.tryParse(value ?? '');
+                      return parsed == null || parsed < 1 || parsed > 120
+                          ? context.l10n.t('invalid_month_count')
+                          : null;
+                    })),
+            const SizedBox(width: 8),
+            SizedBox(
+                width: 140,
+                child: CheckboxListTile(
+                    dense: true,
+                    contentPadding: EdgeInsets.zero,
+                    controlAffinity: ListTileControlAffinity.leading,
+                    title: Text(context.l10n.t('no_end_date')),
+                    value: noEndDate,
+                    onChanged: (value) =>
+                        setState(() => noEndDate = value ?? false))),
+          ]),
+        ],
+      ]);
 
   @override
   Widget build(BuildContext context) {
@@ -188,6 +275,10 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                           .any((c) => c.id == categoryId && c.type == type))
                         categoryId = null;
                     })),
+            if (widget.existing == null) ...[
+              const SizedBox(height: 8),
+              _recurrenceOptions(context),
+            ],
             const SizedBox(height: 15),
             TextFormField(
                 controller: amount,

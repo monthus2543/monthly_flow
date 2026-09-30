@@ -238,6 +238,10 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
       shadowColor: Colors.black.withValues(alpha: .22),
       surfaceTintColor: Colors.transparent,
     ),
+    bottomSheetTheme: const BottomSheetThemeData(
+      backgroundColor: Colors.white,
+      modalBackgroundColor: Colors.white,
+    ),
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),

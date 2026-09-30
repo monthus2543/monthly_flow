@@ -49,6 +49,14 @@ class FinanceRepository {
     }
   }
 
+  Future<void> saveAll(List<Entry> entries) async {
+    await db.transaction((txn) async {
+      for (final entry in entries) {
+        await txn.insert('transactions', entry.toMap());
+      }
+    });
+  }
+
   Future<void> delete(int id) =>
       db.delete('transactions', where: 'id = ?', whereArgs: [id]);
   Future<void> saveCategory(Category value) async {
@@ -85,6 +93,15 @@ class FinanceRepository {
           where: 'id = ?', whereArgs: [value.id]);
   }
 
+  Future<void> recordRecurringOccurrence(
+      RecurringRule rule, Entry entry, String monthKey) async {
+    await db.transaction((txn) async {
+      await txn.insert('transactions', entry.toMap());
+      await txn.update('recurring_rules', {'last_generated_month': monthKey},
+          where: 'id = ?', whereArgs: [rule.id]);
+    });
+  }
+
   Future<void> saveGoal(SavingGoal value) async {
     if (value.id == null)
       await db.insert('saving_goals', value.toMap());
@@ -101,8 +118,24 @@ class FinanceRepository {
           where: 'id = ?', whereArgs: [value.id]);
   }
 
-  Future<void> removePlannerItem(String table, int id) =>
-      db.delete(table, where: 'id = ?', whereArgs: [id]);
+  Future<void> removePlannerItem(String table, int id) async {
+    const allowed = {
+      'budgets',
+      'recurring_rules',
+      'saving_goals',
+      'bill_reminders'
+    };
+    if (!allowed.contains(table)) throw ArgumentError.value(table, 'table');
+    final deleted = await db.delete(table, where: 'id = ?', whereArgs: [id]);
+    if (deleted == 0) throw StateError('Planner item not found');
+  }
+
+  Future<void> deactivateAccount(int id) async {
+    final updated = await db.update('accounts', {'is_active': 0},
+        where: 'id = ? AND id != 1', whereArgs: [id]);
+    if (updated == 0) throw StateError('Account not found or protected');
+  }
+
   Future<void> transaction(Future<void> Function(Transaction txn) action) =>
       db.transaction(action);
   Future<List<Map<String, Object?>>> table(String name) => db.query(name);

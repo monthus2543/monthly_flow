@@ -29,7 +29,7 @@ class _HomeShellState extends State<HomeShell> {
     ];
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.transparent,
+      backgroundColor: Colors.white,
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: appBackgroundGradient(context)),
         child: SafeArea(child: IndexedStack(index: index, children: pages)),
@@ -105,34 +105,16 @@ class _HomeShellState extends State<HomeShell> {
       barrierColor: Colors.black.withValues(alpha: .42),
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
-        final dark = theme.brightness == Brightness.dark;
         final scheme = theme.colorScheme;
         return FractionallySizedBox(
           heightFactor: .94,
           child: Material(
-            color: Colors.transparent,
+            color: Colors.white,
             clipBehavior: Clip.antiAlias,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: dark
-                      ? [
-                          const Color(0xFF101716),
-                          Color.lerp(
-                              const Color(0xFF0B0D0D), scheme.primary, .10)!,
-                          const Color(0xFF080909),
-                        ]
-                      : [
-                          Color.lerp(
-                              const Color(0xFFF8FFFC), scheme.primary, .10)!,
-                          const Color(0xFFFFFBF6),
-                          Color.lerp(
-                              const Color(0xFFF6F3FF), scheme.secondary, .08)!,
-                        ],
-                ),
+                color: Colors.white,
               ),
               child: Column(
                 children: [

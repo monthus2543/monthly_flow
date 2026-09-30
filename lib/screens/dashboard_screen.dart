@@ -5,6 +5,7 @@ import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/monthly_bars.dart';
 import 'planner_screen.dart';
+import 'daily_trend_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   final AppStore store;
@@ -86,15 +87,19 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 14),
           ],
           Surface(
+                  onTap: () => Navigator.push(
+                      context,
+                      MaterialPageRoute<void>(
+                          builder: (_) => DailyTrendScreen(store: store))),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                Text(context.l10n.t('trend'),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 15),
-                MonthlyBars(store: store),
-              ]))
+                        Text(context.l10n.t('trend'),
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 15),
+                        MonthlyBars(store: store),
+                      ]))
               .animate(delay: 100.ms)
               .fadeIn(duration: 420.ms)
               .slideY(begin: .06, end: 0, curve: Curves.easeOutCubic),

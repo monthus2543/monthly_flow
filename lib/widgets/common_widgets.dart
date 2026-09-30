@@ -83,33 +83,37 @@ class PageTitle extends StatelessWidget {
 class Surface extends StatelessWidget {
   final Widget child;
   final Gradient? gradient;
-  const Surface({super.key, required this.child, this.gradient});
+  final Color? color;
+  final VoidCallback? onTap;
+  const Surface(
+      {super.key, required this.child, this.gradient, this.color, this.onTap});
   @override
-  Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-            color: gradient == null ? Theme.of(context).cardColor : null,
-            gradient: gradient,
-            borderRadius: BorderRadius.circular(22),
-            border: Border.all(
-                color: Theme.of(context)
-                    .colorScheme
-                    .primary
-                    .withValues(alpha: .08)),
-            boxShadow: [
-              BoxShadow(
+  Widget build(BuildContext context) => GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Container(
+          padding: const EdgeInsets.all(18),
+          decoration: BoxDecoration(
+              color: gradient == null
+                  ? (color ?? Theme.of(context).cardColor)
+                  : null,
+              gradient: gradient,
+              borderRadius: BorderRadius.circular(22),
+              border: Border.all(
                   color: Theme.of(context)
                       .colorScheme
                       .primary
-                      .withValues(alpha: .09),
-                  blurRadius: 22,
-                  offset: const Offset(0, 8))
-            ]),
-        child: Material(
-          type: MaterialType.transparency,
-          child: child,
-        ),
-      );
+                      .withValues(alpha: .08)),
+              boxShadow: [
+                BoxShadow(
+                    color: Theme.of(context)
+                        .colorScheme
+                        .primary
+                        .withValues(alpha: .09),
+                    blurRadius: 22,
+                    offset: const Offset(0, 8))
+              ]),
+          child: Material(type: MaterialType.transparency, child: child)));
 }
 
 class MonthButton extends StatelessWidget {
@@ -124,15 +128,160 @@ class MonthButton extends StatelessWidget {
                   store.selectedMonth.year, store.selectedMonth.month - 1)),
               icon: const Icon(Icons.chevron_left)),
           Expanded(
-              child: Text(monthLabel(context, store.selectedMonth),
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(fontWeight: FontWeight.w700))),
+              child: TextButton(
+                  onPressed: () async {
+                    final selected =
+                        await _showMonthPicker(context, store.selectedMonth);
+                    if (selected != null) await store.changeMonth(selected);
+                  },
+                  child: Text(monthLabel(context, store.selectedMonth),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(fontWeight: FontWeight.w700)))),
           IconButton(
               onPressed: () => store.changeMonth(DateTime(
                   store.selectedMonth.year, store.selectedMonth.month + 1)),
               icon: const Icon(Icons.chevron_right)),
         ]),
       );
+}
+
+Future<DateTime?> _showMonthPicker(
+    BuildContext context, DateTime initial) async {
+  var selectedYear = initial.year;
+  var selectedMonth = initial.month;
+  var choosingYear = false;
+  final locale = Localizations.localeOf(context).toLanguageTag();
+  return showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.white,
+      showDragHandle: true,
+      isScrollControlled: true,
+      builder: (sheetContext) => StatefulBuilder(
+          builder: (context, setSheetState) => SafeArea(
+                child: SizedBox(
+                  height: 500,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(24, 4, 24, 20),
+                    child: Column(children: [
+                      Text(context.l10n.t('select_month'),
+                          style: Theme.of(context)
+                              .textTheme
+                              .titleLarge
+                              ?.copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        IconButton(
+                            onPressed: selectedYear > 2000
+                                ? () => setSheetState(() => selectedYear--)
+                                : null,
+                            icon: const Icon(Icons.chevron_left)),
+                        Expanded(
+                            child: TextButton.icon(
+                                onPressed: () => setSheetState(
+                                    () => choosingYear = !choosingYear),
+                                iconAlignment: IconAlignment.end,
+                                icon: Icon(choosingYear
+                                    ? Icons.expand_less
+                                    : Icons.expand_more),
+                                label: Text(
+                                    DateFormat.y(locale)
+                                        .format(DateTime(selectedYear)),
+                                    style: const TextStyle(
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.w700)))),
+                        IconButton(
+                            onPressed: selectedYear < 2100
+                                ? () => setSheetState(() => selectedYear++)
+                                : null,
+                            icon: const Icon(Icons.chevron_right)),
+                      ]),
+                      Expanded(
+                          child: AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 180),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final slide = Tween<Offset>(
+                                  begin: const Offset(0, .06), end: Offset.zero)
+                              .animate(animation);
+                          return FadeTransition(
+                              opacity: animation,
+                              child: SlideTransition(
+                                  position: slide, child: child));
+                        },
+                        child: choosingYear
+                            ? YearPicker(
+                                key: const ValueKey('years'),
+                                firstDate: DateTime(2000),
+                                lastDate: DateTime(2100),
+                                selectedDate: DateTime(selectedYear),
+                                onChanged: (value) => setSheetState(() {
+                                      selectedYear = value.year;
+                                      choosingYear = false;
+                                    }))
+                            : GridView.builder(
+                                key: const ValueKey('months'),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 12),
+                                gridDelegate:
+                                    const SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: 3,
+                                        childAspectRatio: 2.2,
+                                        crossAxisSpacing: 10,
+                                        mainAxisSpacing: 10),
+                                itemCount: 12,
+                                itemBuilder: (context, index) {
+                                  final month = index + 1;
+                                  final selected = month == selectedMonth;
+                                  return ChoiceChip(
+                                      showCheckmark: false,
+                                      selected: selected,
+                                      selectedColor:
+                                          Theme.of(context).colorScheme.primary,
+                                      side: BorderSide(
+                                          color: selected
+                                              ? Theme.of(context)
+                                                  .colorScheme
+                                                  .primary
+                                              : Theme.of(context).dividerColor),
+                                      label: SizedBox(
+                                          width: double.infinity,
+                                          child: Text(
+                                              DateFormat.MMM(locale).format(
+                                                  DateTime(2020, month)),
+                                              textAlign: TextAlign.center,
+                                              style: TextStyle(
+                                                  color: selected
+                                                      ? Theme.of(context)
+                                                          .colorScheme
+                                                          .onPrimary
+                                                      : Theme.of(context)
+                                                          .colorScheme
+                                                          .onSurface,
+                                                  fontWeight: selected
+                                                      ? FontWeight.w700
+                                                      : FontWeight.w500))),
+                                      onSelected: (_) => setSheetState(
+                                          () => selectedMonth = month));
+                                }),
+                      )),
+                      const SizedBox(height: 12),
+                      Row(children: [
+                        Expanded(
+                            child: OutlinedButton(
+                                onPressed: () => Navigator.pop(sheetContext),
+                                child: Text(context.l10n.t('cancel')))),
+                        const SizedBox(width: 12),
+                        Expanded(
+                            child: FilledButton(
+                                onPressed: () => Navigator.pop(sheetContext,
+                                    DateTime(selectedYear, selectedMonth)),
+                                child: Text(context.l10n.t('select')))),
+                      ]),
+                    ]),
+                  ),
+                ),
+              )));
 }
 
 class TransactionTile extends StatelessWidget {

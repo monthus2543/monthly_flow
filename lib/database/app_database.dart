@@ -9,7 +9,7 @@ class AppDatabase {
     if (_database != null) return _database!;
     final base = await getDatabasesPath();
     _database = await openDatabase('$base/monthly_flow.db',
-        version: 3,
+        version: 5,
         onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
         onCreate: (db, version) async {
           await db.execute('''CREATE TABLE categories (
@@ -52,6 +52,10 @@ class AppDatabase {
                 "ALTER TABLE transactions ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0");
             await _createPlannerTables(db);
           }
+          if (oldVersion >= 3 && oldVersion < 5) {
+            await db.execute(
+                "ALTER TABLE recurring_rules ADD COLUMN start_month TEXT NOT NULL DEFAULT ''");
+          }
         });
     return _database!;
   }
@@ -82,7 +86,8 @@ class AppDatabase {
       amount_minor INTEGER NOT NULL, type TEXT NOT NULL, category_id INTEGER NOT NULL,
       account_id INTEGER NOT NULL DEFAULT 1, day_of_month INTEGER NOT NULL,
       note TEXT NOT NULL DEFAULT '', is_active INTEGER NOT NULL DEFAULT 1,
-      last_generated_month TEXT NOT NULL DEFAULT '')''');
+      last_generated_month TEXT NOT NULL DEFAULT '',
+      start_month TEXT NOT NULL DEFAULT '')''');
     await db.execute('''CREATE TABLE IF NOT EXISTS saving_goals (
       id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
       target_minor INTEGER NOT NULL, saved_minor INTEGER NOT NULL DEFAULT 0,

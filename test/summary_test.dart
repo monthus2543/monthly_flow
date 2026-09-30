@@ -46,4 +46,32 @@ void main() {
     expect(budget.amountMinor, 250000);
     expect(budget.categoryId, isNull);
   });
+
+  test('monthly entries respect start month, count, and short months', () {
+    final template = Entry(
+        title: 'Installment',
+        amountMinor: 150000,
+        type: expense,
+        categoryId: 3,
+        date: DateTime(2026, 1, 31),
+        createdAt: 100);
+    final rows = buildMonthlyEntries(template, DateTime(2026, 2), 3);
+    expect(rows.map((entry) => entry.date), [
+      DateTime(2026, 2, 28),
+      DateTime(2026, 3, 31),
+      DateTime(2026, 4, 30),
+    ]);
+    expect(rows.every((entry) => entry.amountMinor == 150000), isTrue);
+  });
+
+  test('recurring rule preserves its starting month', () {
+    const rule = RecurringRule(
+        title: 'Rent',
+        amountMinor: 900000,
+        type: expense,
+        categoryId: 3,
+        dayOfMonth: 1,
+        startMonth: '2026-10');
+    expect(rule.toMap()['start_month'], '2026-10');
+  });
 }

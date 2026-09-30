@@ -91,8 +91,16 @@ class _Accounts extends StatelessWidget {
                     ? context.l10n.t('cash')
                     : account.name),
                 subtitle: Text(account.kind),
-                trailing: Text(money(context, store.accountBalance(account)),
-                    style: const TextStyle(fontWeight: FontWeight.bold)),
+                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text(money(context, store.accountBalance(account)),
+                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                  if (account.id != 1)
+                    IconButton(
+                        onPressed: () => _confirmPlannerDelete(
+                            context, () => store.removeAccount(account.id!)),
+                        icon: const Icon(Icons.delete_outline,
+                            color: expenseRed)),
+                ]),
               ))
           ]);
 }
@@ -195,7 +203,7 @@ class _Page extends StatelessWidget {
 
 class _DeleteRow extends StatelessWidget {
   final String title;
-  final VoidCallback onDelete;
+  final Future<void> Function() onDelete;
   const _DeleteRow({required this.title, required this.onDelete});
   @override
   Widget build(BuildContext context) => Row(children: [
@@ -203,9 +211,36 @@ class _DeleteRow extends StatelessWidget {
             child: Text(title,
                 style: const TextStyle(fontWeight: FontWeight.w700))),
         IconButton(
-            onPressed: onDelete,
+            onPressed: () => _confirmPlannerDelete(context, onDelete),
             icon: const Icon(Icons.delete_outline, color: expenseRed))
       ]);
+}
+
+Future<void> _confirmPlannerDelete(
+    BuildContext context, Future<void> Function() onDelete) async {
+  final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+            title: Text(dialogContext.l10n.t('delete_planner_title')),
+            content: Text(dialogContext.l10n.t('delete_planner_body')),
+            actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(dialogContext, false),
+                  child: Text(dialogContext.l10n.t('cancel'))),
+              FilledButton(
+                  onPressed: () => Navigator.pop(dialogContext, true),
+                  child: Text(dialogContext.l10n.t('delete'))),
+            ],
+          ));
+  if (confirmed != true || !context.mounted) return;
+  try {
+    await onDelete();
+  } catch (_) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(context.l10n.t('delete_failed'))));
+    }
+  }
 }
 
 class _Empty extends StatelessWidget {

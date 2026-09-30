@@ -41,6 +41,7 @@ class AppStore extends ChangeNotifier {
     final parsed = DateTime.tryParse(values['selected_month'] ?? '');
     if (parsed != null) selectedMonth = DateTime(parsed.year, parsed.month);
     await refresh();
+    await _generateAutomaticRecurringThrough(DateTime.now());
   }
 
   Future<void> refresh() async {
@@ -107,6 +108,13 @@ class AppStore extends ChangeNotifier {
       throw ArgumentError('Invalid transaction');
     }
     await _repository!.save(entry);
+    await refresh();
+  }
+
+  Future<void> saveMonthlyEntries(
+      Entry template, DateTime startMonth, int numberOfMonths) async {
+    await _repository!
+        .saveAll(buildMonthlyEntries(template, startMonth, numberOfMonths));
     await refresh();
   }
 
@@ -185,6 +193,23 @@ class AppStore extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> saveIndefiniteMonthlyEntry(
+      Entry template, DateTime startMonth) async {
+    final key = _monthKey(startMonth);
+    await _repository!.saveRecurringRule(RecurringRule(
+      title: template.title,
+      amountMinor: template.amountMinor,
+      type: template.type,
+      categoryId: template.categoryId,
+      accountId: template.accountId,
+      dayOfMonth: template.date.day,
+      note: template.note,
+      startMonth: key,
+    ));
+    await refresh();
+    await _generateAutomaticRecurringThrough(DateTime.now());
+  }
+
   Future<void> saveGoal(SavingGoal value) async {
     await _repository!.saveGoal(value);
     await refresh();
@@ -200,14 +225,22 @@ class AppStore extends ChangeNotifier {
     await refresh();
   }
 
+  Future<void> removeAccount(int id) async {
+    await _repository!.deactivateAccount(id);
+    await refresh();
+  }
+
   Future<void> generateRecurringForMonth(DateTime month) async {
-    final key =
-        '${month.year.toString().padLeft(4, '0')}-${month.month.toString().padLeft(2, '0')}';
-    for (final rule in recurringRules
-        .where((r) => r.isActive && r.lastGeneratedMonth != key)) {
+    final key = _monthKey(month);
+    for (final rule in recurringRules.where((r) =>
+        r.isActive &&
+        r.lastGeneratedMonth != key &&
+        (r.startMonth.isEmpty || key.compareTo(r.startMonth) >= 0) &&
+        (r.lastGeneratedMonth.isEmpty ||
+            key.compareTo(r.lastGeneratedMonth) > 0))) {
       final lastDay = DateTime(month.year, month.month + 1, 0).day;
       final now = DateTime.now().microsecondsSinceEpoch;
-      await _repository!.save(Entry(
+      final entry = Entry(
           title: rule.title,
           amountMinor: rule.amountMinor,
           type: rule.type,
@@ -216,8 +249,47 @@ class AppStore extends ChangeNotifier {
           date: DateTime(
               month.year, month.month, rule.dayOfMonth.clamp(1, lastDay)),
           note: rule.note,
-          createdAt: now));
-      await _repository!.saveRecurringRule(RecurringRule(
+          createdAt: now);
+      await _repository!.recordRecurringOccurrence(rule, entry, key);
+    }
+    await refresh();
+  }
+
+  String _monthKey(DateTime value) =>
+      '${value.year.toString().padLeft(4, '0')}-${value.month.toString().padLeft(2, '0')}';
+
+  DateTime? _parseMonth(String value) {
+    final parsed = DateTime.tryParse('$value-01');
+    return parsed == null ? null : DateTime(parsed.year, parsed.month);
+  }
+
+  Future<void> _generateAutomaticRecurringThrough(DateTime target) async {
+    var generated = false;
+    for (final initialRule in recurringRules
+        .where((rule) => rule.isActive && rule.startMonth.isNotEmpty)) {
+      var rule = initialRule;
+      final start = _parseMonth(rule.startMonth);
+      if (start == null) continue;
+      final last = _parseMonth(rule.lastGeneratedMonth);
+      var month = last == null ? start : DateTime(last.year, last.month + 1);
+      final end = DateTime(target.year, target.month);
+      while (!month.isAfter(end)) {
+        final key = _monthKey(month);
+        final lastDay = DateTime(month.year, month.month + 1, 0).day;
+        final now = DateTime.now().microsecondsSinceEpoch;
+        final entry = Entry(
+          title: rule.title,
+          amountMinor: rule.amountMinor,
+          type: rule.type,
+          categoryId: rule.categoryId,
+          accountId: rule.accountId,
+          date: DateTime(
+              month.year, month.month, rule.dayOfMonth.clamp(1, lastDay)),
+          note: rule.note,
+          createdAt: now,
+        );
+        await _repository!.recordRecurringOccurrence(rule, entry, key);
+        rule = RecurringRule(
           id: rule.id,
           title: rule.title,
           amountMinor: rule.amountMinor,
@@ -227,9 +299,14 @@ class AppStore extends ChangeNotifier {
           dayOfMonth: rule.dayOfMonth,
           note: rule.note,
           isActive: rule.isActive,
-          lastGeneratedMonth: key));
+          lastGeneratedMonth: key,
+          startMonth: rule.startMonth,
+        );
+        generated = true;
+        month = DateTime(month.year, month.month + 1);
+      }
     }
-    await refresh();
+    if (generated) await refresh();
   }
 
   Future<void> transfer(
