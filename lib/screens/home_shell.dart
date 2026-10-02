@@ -106,15 +106,17 @@ class _HomeShellState extends State<HomeShell> {
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
         final scheme = theme.colorScheme;
+        final backgroundColor =
+            theme.bottomSheetTheme.modalBackgroundColor ?? scheme.surface;
         return FractionallySizedBox(
           heightFactor: .94,
           child: Material(
-            color: Colors.white,
+            color: backgroundColor,
             clipBehavior: Clip.antiAlias,
             borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: backgroundColor,
               ),
               child: Column(
                 children: [

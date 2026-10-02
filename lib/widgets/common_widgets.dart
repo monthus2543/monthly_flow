@@ -153,7 +153,6 @@ Future<DateTime?> _showMonthPicker(
   final locale = Localizations.localeOf(context).toLanguageTag();
   return showModalBottomSheet<DateTime>(
       context: context,
-      backgroundColor: Colors.white,
       showDragHandle: true,
       isScrollControlled: true,
       builder: (sheetContext) => StatefulBuilder(
