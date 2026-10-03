@@ -78,13 +78,12 @@ class _CategoryDialogState extends State<_CategoryDialog> {
               decoration:
                   InputDecoration(labelText: context.l10n.t('category'))),
           const SizedBox(height: 12),
-          SegmentedButton<String>(segments: [
-            ButtonSegment(
-                value: expense, label: Text(context.l10n.t('expense'))),
-            ButtonSegment(value: income, label: Text(context.l10n.t('income'))),
-          ], selected: {
-            type
-          }, onSelectionChanged: (value) => setState(() => type = value.first)),
+          AppSegmentedControl(
+            width: MediaQuery.sizeOf(context).width - 96,
+            segments: transactionTypeSegments(context),
+            value: type,
+            onChanged: (value) => setState(() => type = value),
+          ),
         ]),
         actions: [
           if (widget.existing != null)

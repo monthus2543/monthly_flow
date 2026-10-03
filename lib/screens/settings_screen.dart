@@ -27,10 +27,9 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                 Text(context.l10n.t('display'),
                     style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('dark_mode')),
+                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+                AppSwitchTile(
+                    title: context.l10n.t('dark_mode'),
                     value: store.darkMode,
                     onChanged: store.setDarkMode),
                 ListTile(
@@ -53,14 +52,12 @@ class SettingsScreen extends StatelessWidget {
                             _changeThemeColor(context, value);
                           }
                         })),
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('hide_balances')),
+                AppSwitchTile(
+                    title: context.l10n.t('hide_balances'),
                     value: store.hideBalances,
                     onChanged: store.setHideBalances),
-                SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('reminders')),
+                AppSwitchTile(
+                    title: context.l10n.t('reminders'),
                     value: store.remindersEnabled,
                     onChanged: store.setRemindersEnabled),
                 ListTile(
@@ -100,7 +97,7 @@ class SettingsScreen extends StatelessWidget {
                   children: [
                 Text(context.l10n.t('my_data'),
                     style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.bold)),
+                        fontSize: 16, fontWeight: FontWeight.w600)),
                 ListTile(
                     contentPadding: EdgeInsets.zero,
                     title: Text(context.l10n.t('planner')),
@@ -127,8 +124,7 @@ class SettingsScreen extends StatelessWidget {
                       await Clipboard.setData(
                           ClipboardData(text: store.exportCsv()));
                       if (context.mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                            content: Text(context.l10n.t('csv_copied'))));
+                        showAppAlert(context, context.l10n.t('csv_copied'));
                     }),
                 ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -150,7 +146,7 @@ class SettingsScreen extends StatelessWidget {
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.primary,
                         fontSize: 16,
-                        fontWeight: FontWeight.bold)),
+                        fontWeight: FontWeight.w600)),
                 const SizedBox(height: 5),
                 Text(context.l10n.t('offline'),
                     style: const TextStyle(color: muted, fontSize: 12)),
@@ -174,8 +170,7 @@ class SettingsScreen extends StatelessWidget {
           ShareParams(files: [XFile(file.path)], title: 'Monthly Flow backup'));
     } catch (_) {
       if (context.mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.t('backup_failed'))));
+        showAppAlert(context, context.l10n.t('backup_failed'), isError: true);
     }
   }
 
@@ -221,12 +216,10 @@ class SettingsScreen extends StatelessWidget {
     try {
       await store.importBackupJson(await File(path).readAsString());
       if (context.mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.t('backup_imported'))));
+        showAppAlert(context, context.l10n.t('backup_imported'));
     } catch (_) {
       if (context.mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.t('backup_failed'))));
+        showAppAlert(context, context.l10n.t('backup_failed'), isError: true);
     }
   }
 
@@ -246,9 +239,7 @@ class SettingsScreen extends StatelessWidget {
                 ]));
     if (confirmed == true) {
       await store.clearEntries();
-      if (context.mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(context.l10n.t('cleared'))));
+      if (context.mounted) showAppAlert(context, context.l10n.t('cleared'));
     }
   }
 }
@@ -303,7 +294,7 @@ class _PinDialogState extends State<_PinDialog> {
   PinTheme _pinTheme(BuildContext context) => PinTheme(
         width: 42,
         height: 52,
-        textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),

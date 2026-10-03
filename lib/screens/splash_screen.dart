@@ -84,7 +84,7 @@ class SplashScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 fontSize: 32,
-                                fontWeight: FontWeight.w900,
+                                fontWeight: FontWeight.w600,
                                 letterSpacing: -.7,
                                 color: dark
                                     ? const Color(0xFFE8FBFF)
@@ -108,7 +108,7 @@ class SplashScreen extends StatelessWidget {
                                     ? const Color(0xFF8FB2BB)
                                     : const Color(0xFF648797),
                                 fontSize: 12,
-                                fontWeight: FontWeight.w500)),
+                                fontWeight: FontWeight.w600)),
                         const Spacer(),
                       ]),
                     ),
@@ -134,7 +134,7 @@ class _DashboardSkeleton extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             const Text('ภาพรวมประจำเดือน',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
             const SizedBox(height: 12),
             Container(
               padding: const EdgeInsets.all(16),
@@ -150,7 +150,7 @@ class _DashboardSkeleton extends StatelessWidget {
                   SizedBox(height: 8),
                   Text('฿00,000.00',
                       style:
-                          TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+                          TextStyle(fontSize: 22, fontWeight: FontWeight.w600)),
                 ],
               ),
             ),

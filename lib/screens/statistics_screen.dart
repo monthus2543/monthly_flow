@@ -29,7 +29,7 @@ class StatisticsScreen extends StatelessWidget {
             children: [
               Text(context.l10n.t('income_expense_summary'),
                   style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700)),
+                      fontSize: 17, fontWeight: FontWeight.w600)),
               const SizedBox(height: 18),
               SizedBox(
                 height: 220,
@@ -54,7 +54,7 @@ class StatisticsScreen extends StatelessWidget {
                                 ? expenseRed
                                 : Theme.of(context).colorScheme.primary,
                             fontSize: 18,
-                            fontWeight: FontWeight.w800)),
+                            fontWeight: FontWeight.w600)),
                   ]),
                 ]),
               ),
@@ -86,7 +86,7 @@ class StatisticsScreen extends StatelessWidget {
             children: [
               Text(context.l10n.t('transaction_table'),
                   style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w700)),
+                      fontSize: 17, fontWeight: FontWeight.w600)),
               const SizedBox(height: 14),
               _TransactionTable(rows: rows, balance: balance),
             ],
@@ -126,7 +126,7 @@ class StatisticsScreen extends StatelessWidget {
               titleStyle: const TextStyle(
                   color: Colors.white,
                   fontSize: 11,
-                  fontWeight: FontWeight.w700)),
+                  fontWeight: FontWeight.w600)),
     ];
   }
 }
@@ -147,7 +147,7 @@ class _SummaryLegend extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(child: Text(label)),
         Text(money(context, amount),
-            style: const TextStyle(fontWeight: FontWeight.w700)),
+            style: const TextStyle(fontWeight: FontWeight.w600)),
       ]);
 }
 
@@ -238,7 +238,7 @@ class _TransactionTable extends StatelessWidget {
                 color: color,
                 fontSize: 12,
                 fontWeight:
-                    header || emphasized ? FontWeight.w700 : FontWeight.w400)),
+                    header || emphasized ? FontWeight.w600 : FontWeight.w400)),
       );
 }
 

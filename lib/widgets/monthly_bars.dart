@@ -75,7 +75,7 @@ class MonthlyBars extends StatelessWidget {
                   money(context, rod.toY.round()),
                   TextStyle(
                     color: theme.colorScheme.onInverseSurface,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     fontSize: 11,
                   ),
                 ),

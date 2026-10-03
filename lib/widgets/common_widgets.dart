@@ -5,6 +5,18 @@ import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../l10n/app_localizations.dart';
 import '../models/finance_models.dart';
 import '../state/app_store.dart';
+import 'app_segmented_control.dart';
+
+export 'app_alert.dart';
+export 'app_segmented_control.dart';
+export 'app_switch_tile.dart';
+
+List<AppSegment> transactionTypeSegments(BuildContext context) => [
+      AppSegment(expense, context.l10n.t('expense'), Icons.north_east,
+          color: Theme.of(context).colorScheme.error),
+      AppSegment(income, context.l10n.t('income'), Icons.south_west,
+          color: Theme.of(context).colorScheme.primary),
+    ];
 
 const brandGreen = Color(0xFF008E7B);
 const expenseRed = Color(0xFFFF6B5E);
@@ -74,7 +86,7 @@ class PageTitle extends StatelessWidget {
   Widget build(BuildContext context) =>
       Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
         Text(title,
-            style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w800)),
+            style: const TextStyle(fontSize: 27, fontWeight: FontWeight.w600)),
         const SizedBox(height: 3),
         Text(subtitle, style: const TextStyle(color: muted)),
       ]);
@@ -136,7 +148,7 @@ class MonthButton extends StatelessWidget {
                   },
                   child: Text(monthLabel(context, store.selectedMonth),
                       textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w700)))),
+                      style: const TextStyle(fontWeight: FontWeight.w600)))),
           IconButton(
               onPressed: () => store.changeMonth(DateTime(
                   store.selectedMonth.year, store.selectedMonth.month + 1)),
@@ -166,7 +178,7 @@ Future<DateTime?> _showMonthPicker(
                           style: Theme.of(context)
                               .textTheme
                               .titleLarge
-                              ?.copyWith(fontWeight: FontWeight.w700)),
+                              ?.copyWith(fontWeight: FontWeight.w600)),
                       const SizedBox(height: 12),
                       Row(children: [
                         IconButton(
@@ -187,7 +199,7 @@ Future<DateTime?> _showMonthPicker(
                                         .format(DateTime(selectedYear)),
                                     style: const TextStyle(
                                         fontSize: 20,
-                                        fontWeight: FontWeight.w700)))),
+                                        fontWeight: FontWeight.w600)))),
                         IconButton(
                             onPressed: selectedYear < 2100
                                 ? () => setSheetState(() => selectedYear++)
@@ -258,8 +270,8 @@ Future<DateTime?> _showMonthPicker(
                                                           .colorScheme
                                                           .onSurface,
                                                   fontWeight: selected
-                                                      ? FontWeight.w700
-                                                      : FontWeight.w500))),
+                                                      ? FontWeight.w600
+                                                      : FontWeight.w400))),
                                       onSelected: (_) => setSheetState(
                                           () => selectedMonth = month));
                                 }),
@@ -312,7 +324,7 @@ class TransactionTile extends StatelessWidget {
         trailing: Text(
             '${entry.type == income ? '+' : '−'}${money(context, entry.amountMinor)}',
             style: TextStyle(
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 color: entry.type == income ? brandGreen : expenseRed)),
         onTap: onTap,
         onLongPress: onDuplicate,

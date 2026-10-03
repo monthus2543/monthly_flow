@@ -30,7 +30,7 @@ class DailyTrendScreen extends StatelessWidget {
           MonthButton(store: store),
           Text(monthLabel(context, store.selectedMonth),
               style:
-                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w700)),
+                  const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           Row(children: [
             _Legend(color: brandGreen, label: context.l10n.t('income')),
@@ -68,7 +68,7 @@ class _WeekChart extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
           '${context.l10n.t('week')} $weekNumber · ${context.l10n.t('day')} ${values.first.$1}–${values.last.$1}',
-          style: const TextStyle(fontWeight: FontWeight.w700)),
+          style: const TextStyle(fontWeight: FontWeight.w600)),
       const SizedBox(height: 10),
       SizedBox(
         height: 220,
@@ -128,7 +128,7 @@ class _WeekChart extends StatelessWidget {
                     TextStyle(
                         color: theme.colorScheme.onInverseSurface,
                         fontSize: 11,
-                        fontWeight: FontWeight.w700),
+                        fontWeight: FontWeight.w600),
                   ),
                 )),
             barGroups: [

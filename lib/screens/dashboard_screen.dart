@@ -36,7 +36,7 @@ class DashboardScreen extends StatelessWidget {
                                     store.monthlyIncome - store.monthlyExpense),
                             style: const TextStyle(
                                 fontSize: 31,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                                 color: Colors.white)),
                         const SizedBox(height: 16),
                         Row(children: [
@@ -67,7 +67,7 @@ class DashboardScreen extends StatelessWidget {
                                 child: Text(context.l10n.t('monthly_budget'),
                                     style: const TextStyle(
                                         fontSize: 16,
-                                        fontWeight: FontWeight.bold))),
+                                        fontWeight: FontWeight.w600))),
                             Text(
                                 '${(store.monthlyExpense * 100 / store.monthlyBudget).round()}%')
                           ]),
@@ -96,7 +96,7 @@ class DashboardScreen extends StatelessWidget {
                       children: [
                         Text(context.l10n.t('trend'),
                             style: const TextStyle(
-                                fontSize: 16, fontWeight: FontWeight.bold)),
+                                fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 15),
                         MonthlyBars(store: store),
                       ]))
@@ -112,7 +112,7 @@ class DashboardScreen extends StatelessWidget {
                   Expanded(
                       child: Text(context.l10n.t('latest'),
                           style: const TextStyle(
-                              fontSize: 16, fontWeight: FontWeight.bold))),
+                              fontSize: 16, fontWeight: FontWeight.w600))),
                   IconButton(
                       onPressed: () => onNavigate?.call(1),
                       icon: const Icon(Icons.chevron_right))
@@ -139,7 +139,7 @@ class DashboardScreen extends StatelessWidget {
         Text(store.hideBalances ? '••••••' : money(context, amount),
             style: const TextStyle(
                 color: Colors.white,
-                fontWeight: FontWeight.bold,
+                fontWeight: FontWeight.w600,
                 fontSize: 17)),
       ]);
 }

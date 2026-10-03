@@ -140,8 +140,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.t('save_failed'))));
+        showAppAlert(context, context.l10n.t('save_failed'), isError: true);
     } finally {
       if (mounted) setState(() => saving = false);
     }
@@ -169,8 +168,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted)
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(context.l10n.t('delete_failed'))));
+        showAppAlert(context, context.l10n.t('delete_failed'), isError: true);
     }
   }
 
@@ -259,18 +257,11 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
             Text(context.l10n.t('form_hint'),
                 style: const TextStyle(color: muted)),
             const SizedBox(height: 16),
-            SegmentedButton<String>(
-                segments: [
-                  ButtonSegment(
-                      value: expense, label: Text(context.l10n.t('expense'))),
-                  ButtonSegment(
-                      value: income, label: Text(context.l10n.t('income'))),
-                ],
-                selected: {
-                  type
-                },
-                onSelectionChanged: (selection) => setState(() {
-                      type = selection.first;
+            AppSegmentedControl(
+                segments: transactionTypeSegments(context),
+                value: type,
+                onChanged: (selection) => setState(() {
+                      type = selection;
                       if (!options
                           .any((c) => c.id == categoryId && c.type == type))
                         categoryId = null;
@@ -346,9 +337,8 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                   if (value != null) setState(() => accountId = value);
                 }),
             const SizedBox(height: 8),
-            SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: Text(context.l10n.t('favorite')),
+            AppSwitchTile(
+                title: context.l10n.t('favorite'),
                 value: isFavorite,
                 onChanged: (value) => setState(() => isFavorite = value)),
             OutlinedButton.icon(

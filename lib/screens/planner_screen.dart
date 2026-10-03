@@ -93,7 +93,7 @@ class _Accounts extends StatelessWidget {
                 subtitle: Text(account.kind),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   Text(money(context, store.accountBalance(account)),
-                      style: const TextStyle(fontWeight: FontWeight.bold)),
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
                   if (account.id != 1)
                     IconButton(
                         onPressed: () => _confirmPlannerDelete(
@@ -209,7 +209,7 @@ class _DeleteRow extends StatelessWidget {
   Widget build(BuildContext context) => Row(children: [
         Expanded(
             child: Text(title,
-                style: const TextStyle(fontWeight: FontWeight.w700))),
+                style: const TextStyle(fontWeight: FontWeight.w600))),
         IconButton(
             onPressed: () => _confirmPlannerDelete(context, onDelete),
             icon: const Icon(Icons.delete_outline, color: expenseRed))
@@ -237,8 +237,7 @@ Future<void> _confirmPlannerDelete(
     await onDelete();
   } catch (_) {
     if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(context.l10n.t('delete_failed'))));
+      showAppAlert(context, context.l10n.t('delete_failed'), isError: true);
     }
   }
 }

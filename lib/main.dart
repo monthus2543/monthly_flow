@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:pinput/pinput.dart';
 import 'l10n/app_localizations.dart';
 import 'screens/home_shell.dart';
@@ -8,6 +11,11 @@ import 'state/app_store.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  GoogleFonts.config.allowRuntimeFetching = false;
+  LicenseRegistry.addLicense(() async* {
+    yield LicenseEntryWithLineBreaks(
+        ['Prompt'], await rootBundle.loadString('assets/fonts/OFL-Prompt.txt'));
+  });
   runApp(const MonthlyFlowApp());
 }
 
@@ -126,7 +134,7 @@ class _PinLockState extends State<_PinLock> {
                             style: Theme.of(context)
                                 .textTheme
                                 .headlineSmall
-                                ?.copyWith(fontWeight: FontWeight.bold)),
+                                ?.copyWith(fontWeight: FontWeight.w600)),
                         const SizedBox(height: 18),
                         Pinput(
                             controller: controller,
@@ -161,7 +169,7 @@ class _PinLockState extends State<_PinLock> {
   PinTheme _pinTheme(BuildContext context) => PinTheme(
         width: 46,
         height: 54,
-        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         decoration: BoxDecoration(
           color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(15),
@@ -196,22 +204,34 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
     error: dark ? const Color(0xFFFF8B80) : const Color(0xFFFF5F52),
     surface: dark ? const Color(0xFF121212) : const Color(0xFFFFFBF7),
   );
-  return ThemeData(
+  GoogleFonts.config.allowRuntimeFetching = false;
+  final baseTheme = ThemeData(
     useMaterial3: true,
     brightness: brightness,
-    fontFamily: 'NotoSansThaiLooped',
+    fontFamily: 'Prompt',
     colorScheme: scheme,
     scaffoldBackgroundColor: dark ? Colors.black : const Color(0xFFF4FAF8),
-    cardColor: dark ? const Color(0xFF121212) : const Color(0xFFFFFBF7),
+    cardColor: scheme.surface,
+    dialogTheme: DialogThemeData(
+      backgroundColor: scheme.surface,
+      surfaceTintColor: Colors.transparent,
+      elevation: 8,
+      shadowColor: scheme.primary.withValues(alpha: .09),
+      barrierColor: Colors.black.withValues(alpha: dark ? .32 : .18),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(22),
+        side: BorderSide(color: scheme.primary.withValues(alpha: .08)),
+      ),
+    ),
     appBarTheme: AppBarTheme(
       backgroundColor: dark ? Colors.black : const Color(0xFFF4FAF8),
       foregroundColor: dark ? const Color(0xFFF5F5F5) : const Color(0xFF123C39),
       centerTitle: false,
       scrolledUnderElevation: 0,
       titleTextStyle: TextStyle(
-        fontFamily: 'NotoSansThaiLooped',
+        fontFamily: 'Prompt',
         fontSize: 21,
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         color: dark ? const Color(0xFFF5F5F5) : const Color(0xFF123C39),
       ),
     ),
@@ -220,7 +240,7 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
       indicatorColor: dark ? const Color(0xFF24312E) : const Color(0xFFCFF8ED),
       labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
             fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w700
+                ? FontWeight.w600
                 : FontWeight.w500,
             color:
                 states.contains(WidgetState.selected) ? scheme.primary : null,
@@ -246,8 +266,8 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
     filledButtonTheme: FilledButtonThemeData(
         style: FilledButton.styleFrom(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15)),
-      textStyle: const TextStyle(
-          fontFamily: 'NotoSansThaiLooped', fontWeight: FontWeight.w700),
+      textStyle:
+          const TextStyle(fontFamily: 'Prompt', fontWeight: FontWeight.w500),
     )),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
@@ -282,5 +302,30 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
           borderSide: BorderSide(
               color: dark ? const Color(0xFF383838) : const Color(0xFFD7EEE8))),
     ),
+  );
+  const semiBold = TextStyle(fontWeight: FontWeight.w600);
+  const regular = TextStyle(fontWeight: FontWeight.w400);
+  const medium = TextStyle(fontWeight: FontWeight.w500);
+  const bold = TextStyle(fontWeight: FontWeight.w700);
+  return baseTheme.copyWith(
+    textTheme: GoogleFonts.promptTextTheme(baseTheme.textTheme.merge(
+      const TextTheme(
+        displayLarge: bold,
+        displayMedium: bold,
+        displaySmall: bold,
+        headlineLarge: semiBold,
+        headlineMedium: semiBold,
+        headlineSmall: semiBold,
+        titleLarge: semiBold,
+        titleMedium: semiBold,
+        titleSmall: semiBold,
+        bodyLarge: regular,
+        bodyMedium: regular,
+        bodySmall: regular,
+        labelLarge: medium,
+        labelMedium: medium,
+        labelSmall: medium,
+      ),
+    )),
   );
 }

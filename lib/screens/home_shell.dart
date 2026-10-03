@@ -209,7 +209,7 @@ class _BottomNavItem extends StatelessWidget {
                         color: color,
                         fontSize: 10,
                         fontWeight:
-                            selected ? FontWeight.w700 : FontWeight.w500)),
+                            selected ? FontWeight.w600 : FontWeight.w500)),
               ]),
         ),
       ),
