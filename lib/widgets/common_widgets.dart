@@ -1,3 +1,5 @@
+import '../color/color.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
@@ -7,6 +9,7 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import 'app_segmented_control.dart';
 
+export '../color/color.dart';
 export 'app_alert.dart';
 export 'app_segmented_control.dart';
 export 'app_switch_tile.dart';
@@ -17,12 +20,6 @@ List<AppSegment> transactionTypeSegments(BuildContext context) => [
       AppSegment(income, context.l10n.t('income'), Icons.south_west,
           color: Theme.of(context).colorScheme.primary),
     ];
-
-const brandGreen = Color(0xFF008E7B);
-const expenseRed = Color(0xFFFF6B5E);
-const accentBlue = Color(0xFF4D7CFE);
-const accentOrange = Color(0xFFFFA63D);
-const muted = Color(0xFF66777A);
 
 LinearGradient brandGradient(BuildContext context) {
   final primary = Theme.of(context).colorScheme.primary;
@@ -43,8 +40,16 @@ LinearGradient appBackgroundGradient(BuildContext context) {
     begin: Alignment.topLeft,
     end: Alignment.bottomRight,
     colors: dark
-        ? const [Color(0xFF000000), Color(0xFF080808), Color(0xFF000000)]
-        : const [Color(0xFFE3F3F4), Color(0xFFF9FAF6), Color(0xFFFFF4E8)],
+        ? const [
+            AppColors.black,
+            AppColors.backgroundDarkMiddle,
+            AppColors.black
+          ]
+        : const [
+            AppColors.backgroundStart,
+            AppColors.backgroundMiddle,
+            AppColors.backgroundEnd
+          ],
   );
 }
 
@@ -128,33 +133,37 @@ class Surface extends StatelessWidget {
           child: Material(type: MaterialType.transparency, child: child)));
 }
 
-class MonthButton extends StatelessWidget {
-  final AppStore store;
-  const MonthButton({super.key, required this.store});
+class MonthButton extends ConsumerWidget {
+  const MonthButton({super.key});
+
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
-        child: Row(children: [
-          IconButton(
-              onPressed: () => store.changeMonth(DateTime(
-                  store.selectedMonth.year, store.selectedMonth.month - 1)),
-              icon: const Icon(Icons.chevron_left)),
-          Expanded(
-              child: TextButton(
-                  onPressed: () async {
-                    final selected =
-                        await _showMonthPicker(context, store.selectedMonth);
-                    if (selected != null) await store.changeMonth(selected);
-                  },
-                  child: Text(monthLabel(context, store.selectedMonth),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(fontWeight: FontWeight.w600)))),
-          IconButton(
-              onPressed: () => store.changeMonth(DateTime(
-                  store.selectedMonth.year, store.selectedMonth.month + 1)),
-              icon: const Icon(Icons.chevron_right)),
-        ]),
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      child: Row(children: [
+        IconButton(
+            onPressed: () => store.changeMonth(DateTime(
+                store.selectedMonth.year, store.selectedMonth.month - 1)),
+            icon: const Icon(Icons.chevron_left)),
+        Expanded(
+            child: TextButton(
+                onPressed: () async {
+                  final selected =
+                      await _showMonthPicker(context, store.selectedMonth);
+                  if (selected != null) await store.changeMonth(selected);
+                },
+                child: Text(monthLabel(context, store.selectedMonth),
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(fontWeight: FontWeight.w600)))),
+        IconButton(
+            onPressed: () => store.changeMonth(DateTime(
+                store.selectedMonth.year, store.selectedMonth.month + 1)),
+            icon: const Icon(Icons.chevron_right)),
+      ]),
+    );
+  }
 }
 
 Future<DateTime?> _showMonthPicker(
@@ -295,38 +304,38 @@ Future<DateTime?> _showMonthPicker(
               )));
 }
 
-class TransactionTile extends StatelessWidget {
-  final AppStore store;
+class TransactionTile extends ConsumerWidget {
   final Entry entry;
   final VoidCallback? onTap;
   final VoidCallback? onDuplicate;
   const TransactionTile(
-      {super.key,
-      required this.store,
-      required this.entry,
-      this.onTap,
-      this.onDuplicate});
+      {super.key, required this.entry, this.onTap, this.onDuplicate});
+
   @override
-  Widget build(BuildContext context) => ListTile(
-        contentPadding: EdgeInsets.zero,
-        leading: CircleAvatar(
-            backgroundColor: entry.type == income
-                ? const Color(0xFFD9FAF1)
-                : const Color(0xFFFFE4DF),
-            child: Icon(
-                entry.type == income
-                    ? LucideIcons.arrowDownLeft
-                    : LucideIcons.arrowUpRight,
-                color: entry.type == income ? brandGreen : expenseRed)),
-        title: Text(entry.title, maxLines: 1, overflow: TextOverflow.ellipsis),
-        subtitle: Text(
-            '${categoryLabel(context, store.categoryFor(entry.categoryId))} · ${dateLabel(context, entry.date)}'),
-        trailing: Text(
-            '${entry.type == income ? '+' : '−'}${money(context, entry.amountMinor)}',
-            style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: entry.type == income ? brandGreen : expenseRed)),
-        onTap: onTap,
-        onLongPress: onDuplicate,
-      );
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: CircleAvatar(
+          backgroundColor: entry.type == income
+              ? AppColors.incomeContainer
+              : AppColors.expenseContainer,
+          child: Icon(
+              entry.type == income
+                  ? LucideIcons.arrowDownLeft
+                  : LucideIcons.arrowUpRight,
+              color: entry.type == income ? brandGreen : expenseRed)),
+      title: Text(entry.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text(
+          '${categoryLabel(context, store.categoryFor(entry.categoryId))} · ${dateLabel(context, entry.date)}'),
+      trailing: Text(
+          '${entry.type == income ? '+' : '−'}${money(context, entry.amountMinor)}',
+          style: TextStyle(
+              fontWeight: FontWeight.w600,
+              color: entry.type == income ? brandGreen : expenseRed)),
+      onTap: onTap,
+      onLongPress: onDuplicate,
+    );
+  }
 }

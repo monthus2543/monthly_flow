@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../l10n/app_localizations.dart';
-import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import 'dashboard_screen.dart';
 import 'entry_form_screen.dart';
@@ -10,8 +9,7 @@ import 'statistics_screen.dart';
 import 'transactions_screen.dart';
 
 class HomeShell extends StatefulWidget {
-  final AppStore store;
-  const HomeShell({super.key, required this.store});
+  const HomeShell({super.key});
   @override
   State<HomeShell> createState() => _HomeShellState();
 }
@@ -22,10 +20,10 @@ class _HomeShellState extends State<HomeShell> {
   @override
   Widget build(BuildContext context) {
     final pages = [
-      DashboardScreen(store: widget.store, onNavigate: _selectPage),
-      TransactionsScreen(store: widget.store),
-      StatisticsScreen(store: widget.store),
-      SettingsScreen(store: widget.store),
+      DashboardScreen(onNavigate: _selectPage),
+      TransactionsScreen(),
+      StatisticsScreen(),
+      SettingsScreen(),
     ];
     return Scaffold(
       resizeToAvoidBottomInset: false,
@@ -140,7 +138,7 @@ class _HomeShellState extends State<HomeShell> {
                           surfaceTintColor: Colors.transparent,
                         ),
                       ),
-                      child: EntryFormScreen(store: widget.store),
+                      child: EntryFormScreen(),
                     ),
                   ),
                 ],

@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
@@ -7,11 +8,13 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 
-class StatisticsScreen extends StatelessWidget {
-  final AppStore store;
-  const StatisticsScreen({super.key, required this.store});
+class StatisticsScreen extends ConsumerWidget {
+  const StatisticsScreen({super.key});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
     final rows = store.monthlyEntries;
     final incomeTotal = store.monthlyIncome;
     final expenseTotal = store.monthlyExpense;
@@ -21,7 +24,7 @@ class StatisticsScreen extends StatelessWidget {
       children: [
         PageTitle(
             context.l10n.t('statistics'), context.l10n.t('stats_subtitle')),
-        MonthButton(store: store),
+        MonthButton(),
         Surface(
           color: Colors.white,
           child: Column(
@@ -212,7 +215,7 @@ class _TransactionTable extends StatelessWidget {
                   _cell(_plainAmount(context, balance.abs()),
                       header: true,
                       align: TextAlign.right,
-                      color: const Color(0xFFF59E0B)),
+                      color: AppColors.favorite),
                 ]),
           ],
         ),

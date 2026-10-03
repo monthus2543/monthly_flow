@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:currency_text_input_formatter/currency_text_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -7,22 +8,18 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 
-class EntryFormScreen extends StatefulWidget {
-  final AppStore store;
+class EntryFormScreen extends ConsumerStatefulWidget {
   final Entry? existing;
   final String? initialType;
   final Entry? initial;
   const EntryFormScreen(
-      {super.key,
-      required this.store,
-      this.existing,
-      this.initialType,
-      this.initial});
+      {super.key, this.existing, this.initialType, this.initial});
   @override
-  State<EntryFormScreen> createState() => _EntryFormScreenState();
+  ConsumerState<EntryFormScreen> createState() => _EntryFormScreenState();
 }
 
-class _EntryFormScreenState extends State<EntryFormScreen> {
+class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
+  AppStore get store => ref.read(appStoreProvider.notifier);
   late final TextEditingController title;
   late final TextEditingController amount;
   late final TextEditingController note;
@@ -58,7 +55,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     note = TextEditingController(text: entry?.note ?? '');
     numberOfMonths = TextEditingController(text: '12');
     final now = DateTime.now();
-    final selectedMonth = widget.store.selectedMonth;
+    final selectedMonth = store.selectedMonth;
     final lastDay =
         DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
     date = entry?.date ??
@@ -69,8 +66,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
     startMonth = DateTime(date.year, date.month);
     type = entry?.type ?? widget.initialType ?? expense;
     categoryId = entry?.categoryId;
-    accountId =
-        entry?.accountId ?? (widget.store.accounts.firstOrNull?.id ?? 1);
+    accountId = entry?.accountId ?? (store.accounts.firstOrNull?.id ?? 1);
     receiptPath = entry?.receiptPath ?? '';
     isFavorite = entry?.isFavorite ?? false;
   }
@@ -129,13 +125,13 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
           isFavorite: isFavorite);
       if (repeatMonthly && widget.existing == null) {
         if (noEndDate) {
-          await widget.store.saveIndefiniteMonthlyEntry(entry, startMonth);
+          await store.saveIndefiniteMonthlyEntry(entry, startMonth);
         } else {
-          await widget.store.saveMonthlyEntries(
+          await store.saveMonthlyEntries(
               entry, startMonth, int.parse(numberOfMonths.text));
         }
       } else {
-        await widget.store.save(entry);
+        await store.save(entry);
       }
       if (mounted) Navigator.pop(context);
     } catch (_) {
@@ -164,7 +160,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                 ]));
     if (confirmed != true) return;
     try {
-      await widget.store.delete(id);
+      await store.delete(id);
       if (mounted) Navigator.pop(context);
     } catch (_) {
       if (mounted)
@@ -236,8 +232,8 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final options =
-        widget.store.categories.where((c) => c.type == type).toList();
+    ref.watch(appStoreProvider);
+    final options = store.categories.where((c) => c.type == type).toList();
     final selected = options.any((c) => c.id == categoryId) ? categoryId : null;
     final heading = widget.existing != null
         ? context.l10n.t('edit_entry')
@@ -326,7 +322,7 @@ class _EntryFormScreenState extends State<EntryFormScreen> {
                 decoration:
                     InputDecoration(labelText: context.l10n.t('account')),
                 items: [
-                  for (final account in widget.store.accounts)
+                  for (final account in store.accounts)
                     DropdownMenuItem(
                         value: account.id,
                         child: Text(account.name == 'cash'

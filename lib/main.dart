@@ -1,3 +1,5 @@
+import 'color/color.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
@@ -16,91 +18,77 @@ void main() {
     yield LicenseEntryWithLineBreaks(
         ['Prompt'], await rootBundle.loadString('assets/fonts/OFL-Prompt.txt'));
   });
-  runApp(const MonthlyFlowApp());
+  runApp(const ProviderScope(child: MonthlyFlowApp()));
 }
 
-class MonthlyFlowApp extends StatefulWidget {
+class MonthlyFlowApp extends ConsumerStatefulWidget {
   const MonthlyFlowApp({super.key});
   @override
-  State<MonthlyFlowApp> createState() => _MonthlyFlowAppState();
+  ConsumerState<MonthlyFlowApp> createState() => _MonthlyFlowAppState();
 }
 
-class _MonthlyFlowAppState extends State<MonthlyFlowApp> {
-  final store = AppStore();
-  late Future<void> startup;
+class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> {
   bool unlocked = false;
 
   @override
-  void initState() {
-    super.initState();
-    startup = store.open();
-  }
-
-  @override
-  void dispose() {
-    store.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-        animation: store,
-        builder: (context, _) => MaterialApp(
-          title: 'Monthly Flow',
-          debugShowCheckedModeBanner: false,
-          locale: Locale(store.languageCode),
-          supportedLocales: AppLocalizations.supportedLocales,
-          localizationsDelegates: const [
-            AppLocalizationsDelegate(),
-            GlobalMaterialLocalizations.delegate,
-            GlobalWidgetsLocalizations.delegate,
-            GlobalCupertinoLocalizations.delegate,
-          ],
-          themeMode: store.darkMode ? ThemeMode.dark : ThemeMode.light,
-          theme: appTheme(Brightness.light, store.themeColor),
-          darkTheme: appTheme(Brightness.dark, store.themeColor),
-          home: FutureBuilder<void>(
-            future: startup,
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return Scaffold(
-                    body: Center(
-                        child: Padding(
-                  padding: const EdgeInsets.all(24),
-                  child: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(context.l10n.t('open_failed')),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                        onPressed: () => setState(() {
-                              startup = store.open();
-                            }),
-                        child: Text(context.l10n.t('retry'))),
-                  ]),
-                )));
-              }
-              if (snapshot.connectionState != ConnectionState.done)
-                return const SplashScreen();
-              if (store.pinHash.isNotEmpty && !unlocked) {
-                return _PinLock(
-                    store: store,
-                    onUnlocked: () => setState(() => unlocked = true));
-              }
-              return HomeShell(store: store);
-            },
-          ),
+  Widget build(BuildContext context) {
+    final settings = ref.watch(appStoreProvider.select((state) => (
+          state.languageCode,
+          state.darkMode,
+          state.themeColor,
+          state.pinHash,
+        )));
+    final startup = ref.watch(appStartupProvider);
+    return MaterialApp(
+      title: 'Monthly Flow',
+      debugShowCheckedModeBanner: false,
+      locale: Locale(settings.$1),
+      supportedLocales: AppLocalizations.supportedLocales,
+      localizationsDelegates: const [
+        AppLocalizationsDelegate(),
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      themeMode: settings.$2 ? ThemeMode.dark : ThemeMode.light,
+      theme: appTheme(Brightness.light, settings.$3),
+      darkTheme: appTheme(Brightness.dark, settings.$3),
+      home: startup.when(
+        loading: () => const SplashScreen(),
+        error: (error, stack) => Scaffold(
+          body: Center(
+              child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Builder(
+                builder: (context) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(context.l10n.t('open_failed')),
+                        const SizedBox(height: 12),
+                        FilledButton(
+                          onPressed: () => ref.invalidate(appStartupProvider),
+                          child: Text(context.l10n.t('retry')),
+                        ),
+                      ],
+                    )),
+          )),
         ),
-      );
+        data: (_) => settings.$4.isNotEmpty && !unlocked
+            ? _PinLock(onUnlocked: () => setState(() => unlocked = true))
+            : const HomeShell(),
+      ),
+    );
+  }
 }
 
-class _PinLock extends StatefulWidget {
-  final AppStore store;
+class _PinLock extends ConsumerStatefulWidget {
   final VoidCallback onUnlocked;
-  const _PinLock({required this.store, required this.onUnlocked});
+  const _PinLock({required this.onUnlocked});
   @override
-  State<_PinLock> createState() => _PinLockState();
+  ConsumerState<_PinLock> createState() => _PinLockState();
 }
 
-class _PinLockState extends State<_PinLock> {
+class _PinLockState extends ConsumerState<_PinLock> {
   final controller = TextEditingController();
   String error = '';
   @override
@@ -160,7 +148,7 @@ class _PinLockState extends State<_PinLock> {
                             child: Text(context.l10n.t('unlock'))),
                       ]))))));
   void _unlock() {
-    if (widget.store.verifyPin(controller.text))
+    if (ref.read(appStoreProvider.notifier).verifyPin(controller.text))
       widget.onUnlocked();
     else
       setState(() => error = context.l10n.t('wrong_pin'));
@@ -181,28 +169,28 @@ class _PinLockState extends State<_PinLock> {
 ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
   final dark = brightness == Brightness.dark;
   final accent = switch (themeColor) {
-    'blue' => const Color(0xFF2563EB),
-    'purple' => const Color(0xFF7C3AED),
-    'orange' => const Color(0xFFEA580C),
-    'rose' => const Color(0xFFE11D48),
-    _ => const Color(0xFF008E7B),
+    'blue' => AppColors.blue,
+    'purple' => AppColors.purple,
+    'orange' => AppColors.orange,
+    'rose' => AppColors.rose,
+    _ => AppColors.teal,
   };
   final darkAccent = switch (themeColor) {
-    'blue' => const Color(0xFF78A9FF),
-    'purple' => const Color(0xFFB99AFF),
-    'orange' => const Color(0xFFFFB274),
-    'rose' => const Color(0xFFFF8CA5),
-    _ => const Color(0xFF62E6CA),
+    'blue' => AppColors.blueDark,
+    'purple' => AppColors.purpleDark,
+    'orange' => AppColors.orangeDark,
+    'rose' => AppColors.roseDark,
+    _ => AppColors.tealDark,
   };
   final scheme = ColorScheme.fromSeed(
     seedColor: accent,
     brightness: brightness,
   ).copyWith(
     primary: dark ? darkAccent : accent,
-    secondary: dark ? const Color(0xFFFFC985) : const Color(0xFFF49A3F),
-    tertiary: dark ? const Color(0xFF8EABFF) : const Color(0xFF4D7CFE),
-    error: dark ? const Color(0xFFFF8B80) : const Color(0xFFFF5F52),
-    surface: dark ? const Color(0xFF121212) : const Color(0xFFFFFBF7),
+    secondary: dark ? AppColors.secondaryDark : AppColors.secondary,
+    tertiary: dark ? AppColors.accentBlueDark : AppColors.accentBlue,
+    error: dark ? AppColors.errorDark : AppColors.error,
+    surface: dark ? AppColors.surfaceDark : AppColors.surface,
   );
   GoogleFonts.config.allowRuntimeFetching = false;
   final baseTheme = ThemeData(
@@ -210,7 +198,7 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
     brightness: brightness,
     fontFamily: 'Prompt',
     colorScheme: scheme,
-    scaffoldBackgroundColor: dark ? Colors.black : const Color(0xFFF4FAF8),
+    scaffoldBackgroundColor: dark ? Colors.black : AppColors.scaffold,
     cardColor: scheme.surface,
     dialogTheme: DialogThemeData(
       backgroundColor: scheme.surface,
@@ -224,20 +212,22 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
       ),
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: dark ? Colors.black : const Color(0xFFF4FAF8),
-      foregroundColor: dark ? const Color(0xFFF5F5F5) : const Color(0xFF123C39),
+      backgroundColor: dark ? Colors.black : AppColors.scaffold,
+      foregroundColor: dark ? AppColors.textDark : AppColors.text,
       centerTitle: false,
       scrolledUnderElevation: 0,
       titleTextStyle: TextStyle(
         fontFamily: 'Prompt',
         fontSize: 21,
         fontWeight: FontWeight.w600,
-        color: dark ? const Color(0xFFF5F5F5) : const Color(0xFF123C39),
+        color: dark ? AppColors.textDark : AppColors.text,
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: dark ? const Color(0xFF0A0A0A) : Colors.white,
-      indicatorColor: dark ? const Color(0xFF24312E) : const Color(0xFFCFF8ED),
+      backgroundColor: dark ? AppColors.navigationDark : Colors.white,
+      indicatorColor: dark
+          ? AppColors.navigationIndicatorDark
+          : AppColors.navigationIndicator,
       labelTextStyle: WidgetStateProperty.resolveWith((states) => TextStyle(
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w600
@@ -248,12 +238,12 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
     ),
     floatingActionButtonTheme: FloatingActionButtonThemeData(
       backgroundColor: scheme.secondary,
-      foregroundColor: const Color(0xFF3A2100),
+      foregroundColor: AppColors.onSecondary,
       elevation: 8,
       shape: const CircleBorder(),
     ),
     bottomAppBarTheme: BottomAppBarThemeData(
-      color: dark ? const Color(0xFF0A0A0A) : Colors.white,
+      color: dark ? AppColors.navigationDark : Colors.white,
       elevation: 14,
       shadowColor: Colors.black.withValues(alpha: .22),
       surfaceTintColor: Colors.transparent,
@@ -285,10 +275,10 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
       secondarySelectedColor: scheme.secondary,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
     ),
-    dividerColor: dark ? const Color(0xFF303030) : const Color(0xFFD7EEE8),
+    dividerColor: dark ? AppColors.dividerDark : AppColors.divider,
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
-      fillColor: dark ? const Color(0xFF151515) : Colors.white,
+      fillColor: dark ? AppColors.inputDark : Colors.white,
       prefixIconColor: scheme.primary,
       focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
@@ -296,11 +286,11 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
       border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-              color: dark ? const Color(0xFF383838) : const Color(0xFFD7EEE8))),
+              color: dark ? AppColors.inputBorderDark : AppColors.divider)),
       enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(16),
           borderSide: BorderSide(
-              color: dark ? const Color(0xFF383838) : const Color(0xFFD7EEE8))),
+              color: dark ? AppColors.inputBorderDark : AppColors.divider)),
     ),
   );
   const semiBold = TextStyle(fontWeight: FontWeight.w600);

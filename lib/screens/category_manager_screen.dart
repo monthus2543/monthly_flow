@@ -1,34 +1,44 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 
-class CategoryManagerScreen extends StatelessWidget {
-  final AppStore store;
-  const CategoryManagerScreen({super.key, required this.store});
+class CategoryManagerScreen extends ConsumerStatefulWidget {
+  const CategoryManagerScreen({super.key});
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(context.l10n.t('manage_categories'))),
-        floatingActionButton: FloatingActionButton(
-            onPressed: () => _edit(context), child: const Icon(Icons.add)),
-        body: ListView(padding: const EdgeInsets.all(20), children: [
-          for (final category in store.categories)
-            Padding(
-                padding: const EdgeInsets.only(bottom: 10),
-                child: Surface(
-                    child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: CircleAvatar(
-                            child: Icon(category.type == income
-                                ? Icons.south_west
-                                : Icons.north_east)),
-                        title: Text(categoryLabel(context, category)),
-                        subtitle: Text(context.l10n.t(category.type)),
-                        trailing: const Icon(Icons.edit_outlined),
-                        onTap: () => _edit(context, category)))),
-        ]),
-      );
+  ConsumerState<CategoryManagerScreen> createState() =>
+      _CategoryManagerScreenState();
+}
+
+class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen> {
+  AppStore get store => ref.read(appStoreProvider.notifier);
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(appStoreProvider);
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.t('manage_categories'))),
+      floatingActionButton: FloatingActionButton(
+          onPressed: () => _edit(context), child: const Icon(Icons.add)),
+      body: ListView(padding: const EdgeInsets.all(20), children: [
+        for (final category in store.categories)
+          Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: Surface(
+                  child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: CircleAvatar(
+                          child: Icon(category.type == income
+                              ? Icons.south_west
+                              : Icons.north_east)),
+                      title: Text(categoryLabel(context, category)),
+                      subtitle: Text(context.l10n.t(category.type)),
+                      trailing: const Icon(Icons.edit_outlined),
+                      onTap: () => _edit(context, category)))),
+      ]),
+    );
+  }
 
   Future<void> _edit(BuildContext context, [Category? existing]) async {
     final result = await showDialog<Map<String, String>>(

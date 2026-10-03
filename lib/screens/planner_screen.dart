@@ -1,173 +1,189 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import '../l10n/app_localizations.dart';
 import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 
-class PlannerScreen extends StatelessWidget {
-  final AppStore store;
-  const PlannerScreen({super.key, required this.store});
+class PlannerScreen extends ConsumerWidget {
+  const PlannerScreen({super.key});
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-        appBar: AppBar(title: Text(context.l10n.t('planner'))),
-        body: DefaultTabController(
-            length: 5,
-            child: Column(children: [
-              TabBar(
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  padding: EdgeInsets.zero,
-                  tabs: [
-                    Tab(text: context.l10n.t('budgets')),
-                    Tab(text: context.l10n.t('accounts')),
-                    Tab(text: context.l10n.t('recurring')),
-                    Tab(text: context.l10n.t('goals')),
-                    Tab(text: context.l10n.t('bills')),
-                  ]),
-              Expanded(
-                  child: TabBarView(children: [
-                _Budgets(store),
-                _Accounts(store),
-                _Recurring(store),
-                _Goals(store),
-                _Bills(store),
-              ])),
-            ])),
-      );
-}
-
-class _Budgets extends StatelessWidget {
-  final AppStore store;
-  const _Budgets(this.store);
-  @override
-  Widget build(BuildContext context) =>
-      _Page(onAdd: () => _budgetDialog(context, store), children: [
-        MonthButton(store: store),
-        for (final budget in store.monthlyBudgets)
-          Surface(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                _DeleteRow(
-                    title: budget.categoryId == null
-                        ? context.l10n.t('total_budget')
-                        : categoryLabel(
-                            context, store.categoryFor(budget.categoryId!)),
-                    onDelete: () =>
-                        store.removePlannerItem('budgets', budget.id!)),
-                Text(
-                    '${money(context, store.spentForBudget(budget))} / ${money(context, budget.amountMinor)}'),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                    value: (store.spentForBudget(budget) / budget.amountMinor)
-                        .clamp(0, 1),
-                    color: store.spentForBudget(budget) > budget.amountMinor
-                        ? expenseRed
-                        : Theme.of(context).colorScheme.primary),
-              ])),
-        if (store.monthlyBudgets.isEmpty) _Empty(context.l10n.t('no_budgets')),
-      ]);
-}
-
-class _Accounts extends StatelessWidget {
-  final AppStore store;
-  const _Accounts(this.store);
-  @override
-  Widget build(BuildContext context) => _Page(
-          onAdd: () => _accountDialog(context, store),
-          secondaryAction: store.accounts.length > 1
-              ? () => _transferDialog(context, store)
-              : null,
-          secondaryLabel: context.l10n.t('transfer'),
-          children: [
-            for (final account in store.accounts)
-              Surface(
-                  child: ListTile(
-                contentPadding: EdgeInsets.zero,
-                leading: const CircleAvatar(
-                    child: Icon(Icons.account_balance_wallet_outlined)),
-                title: Text(account.name == 'cash'
-                    ? context.l10n.t('cash')
-                    : account.name),
-                subtitle: Text(account.kind),
-                trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Text(money(context, store.accountBalance(account)),
-                      style: const TextStyle(fontWeight: FontWeight.w600)),
-                  if (account.id != 1)
-                    IconButton(
-                        onPressed: () => _confirmPlannerDelete(
-                            context, () => store.removeAccount(account.id!)),
-                        icon: const Icon(Icons.delete_outline,
-                            color: expenseRed)),
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Scaffold(
+      appBar: AppBar(title: Text(context.l10n.t('planner'))),
+      body: DefaultTabController(
+          length: 5,
+          child: Column(children: [
+            TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                padding: EdgeInsets.zero,
+                tabs: [
+                  Tab(text: context.l10n.t('budgets')),
+                  Tab(text: context.l10n.t('accounts')),
+                  Tab(text: context.l10n.t('recurring')),
+                  Tab(text: context.l10n.t('goals')),
+                  Tab(text: context.l10n.t('bills')),
                 ]),
-              ))
-          ]);
+            Expanded(
+                child: TabBarView(children: [
+              _Budgets(),
+              _Accounts(),
+              _Recurring(),
+              _Goals(),
+              _Bills(),
+            ])),
+          ])),
+    );
+  }
 }
 
-class _Recurring extends StatelessWidget {
-  final AppStore store;
-  const _Recurring(this.store);
+class _Budgets extends ConsumerWidget {
+  const _Budgets();
+
   @override
-  Widget build(BuildContext context) => _Page(
-          onAdd: () => _recurringDialog(context, store),
-          secondaryAction: store.recurringRules.isEmpty
-              ? null
-              : () => store.generateRecurringForMonth(store.selectedMonth),
-          secondaryLabel: context.l10n.t('generate_now'),
-          children: [
-            for (final rule in store.recurringRules)
-              Surface(
-                  child: _DeleteRow(
-                      title:
-                          '${rule.title} · ${money(context, rule.amountMinor)} · ${context.l10n.t('day')} ${rule.dayOfMonth}',
-                      onDelete: () => store.removePlannerItem(
-                          'recurring_rules', rule.id!))),
-            if (store.recurringRules.isEmpty)
-              _Empty(context.l10n.t('no_recurring')),
-          ]);
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return _Page(onAdd: () => _budgetDialog(context, store), children: [
+      MonthButton(),
+      for (final budget in store.monthlyBudgets)
+        Surface(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _DeleteRow(
+              title: budget.categoryId == null
+                  ? context.l10n.t('total_budget')
+                  : categoryLabel(
+                      context, store.categoryFor(budget.categoryId!)),
+              onDelete: () => store.removePlannerItem('budgets', budget.id!)),
+          Text(
+              '${money(context, store.spentForBudget(budget))} / ${money(context, budget.amountMinor)}'),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+              value: (store.spentForBudget(budget) / budget.amountMinor)
+                  .clamp(0, 1),
+              color: store.spentForBudget(budget) > budget.amountMinor
+                  ? expenseRed
+                  : Theme.of(context).colorScheme.primary),
+        ])),
+      if (store.monthlyBudgets.isEmpty) _Empty(context.l10n.t('no_budgets')),
+    ]);
+  }
 }
 
-class _Goals extends StatelessWidget {
-  final AppStore store;
-  const _Goals(this.store);
+class _Accounts extends ConsumerWidget {
+  const _Accounts();
+
   @override
-  Widget build(BuildContext context) =>
-      _Page(onAdd: () => _goalDialog(context, store), children: [
-        for (final goal in store.savingGoals)
-          Surface(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                _DeleteRow(
-                    title: goal.name,
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return _Page(
+        onAdd: () => _accountDialog(context, store),
+        secondaryAction: store.accounts.length > 1
+            ? () => _transferDialog(context, store)
+            : null,
+        secondaryLabel: context.l10n.t('transfer'),
+        children: [
+          for (final account in store.accounts)
+            Surface(
+                child: ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: const CircleAvatar(
+                  child: Icon(Icons.account_balance_wallet_outlined)),
+              title: Text(account.name == 'cash'
+                  ? context.l10n.t('cash')
+                  : account.name),
+              subtitle: Text(account.kind),
+              trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(money(context, store.accountBalance(account)),
+                    style: const TextStyle(fontWeight: FontWeight.w600)),
+                if (account.id != 1)
+                  IconButton(
+                      onPressed: () => _confirmPlannerDelete(
+                          context, () => store.removeAccount(account.id!)),
+                      icon:
+                          const Icon(Icons.delete_outline, color: expenseRed)),
+              ]),
+            ))
+        ]);
+  }
+}
+
+class _Recurring extends ConsumerWidget {
+  const _Recurring();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return _Page(
+        onAdd: () => _recurringDialog(context, store),
+        secondaryAction: store.recurringRules.isEmpty
+            ? null
+            : () => store.generateRecurringForMonth(store.selectedMonth),
+        secondaryLabel: context.l10n.t('generate_now'),
+        children: [
+          for (final rule in store.recurringRules)
+            Surface(
+                child: _DeleteRow(
+                    title:
+                        '${rule.title} · ${money(context, rule.amountMinor)} · ${context.l10n.t('day')} ${rule.dayOfMonth}',
                     onDelete: () =>
-                        store.removePlannerItem('saving_goals', goal.id!)),
-                Text(
-                    '${money(context, goal.savedMinor)} / ${money(context, goal.targetMinor)}'),
-                const SizedBox(height: 8),
-                LinearProgressIndicator(
-                    value: (goal.savedMinor / goal.targetMinor).clamp(0, 1)),
-              ])),
-        if (store.savingGoals.isEmpty) _Empty(context.l10n.t('no_goals')),
-      ]);
+                        store.removePlannerItem('recurring_rules', rule.id!))),
+          if (store.recurringRules.isEmpty)
+            _Empty(context.l10n.t('no_recurring')),
+        ]);
+  }
 }
 
-class _Bills extends StatelessWidget {
-  final AppStore store;
-  const _Bills(this.store);
+class _Goals extends ConsumerWidget {
+  const _Goals();
+
   @override
-  Widget build(BuildContext context) =>
-      _Page(onAdd: () => _billDialog(context, store), children: [
-        for (final bill in store.billReminders)
-          Surface(
-              child: _DeleteRow(
-                  title:
-                      '${bill.title} · ${context.l10n.t('day')} ${bill.dayOfMonth}${bill.amountMinor > 0 ? ' · ${money(context, bill.amountMinor)}' : ''}',
-                  onDelete: () =>
-                      store.removePlannerItem('bill_reminders', bill.id!))),
-        if (store.billReminders.isEmpty) _Empty(context.l10n.t('no_bills')),
-      ]);
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return _Page(onAdd: () => _goalDialog(context, store), children: [
+      for (final goal in store.savingGoals)
+        Surface(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          _DeleteRow(
+              title: goal.name,
+              onDelete: () =>
+                  store.removePlannerItem('saving_goals', goal.id!)),
+          Text(
+              '${money(context, goal.savedMinor)} / ${money(context, goal.targetMinor)}'),
+          const SizedBox(height: 8),
+          LinearProgressIndicator(
+              value: (goal.savedMinor / goal.targetMinor).clamp(0, 1)),
+        ])),
+      if (store.savingGoals.isEmpty) _Empty(context.l10n.t('no_goals')),
+    ]);
+  }
+}
+
+class _Bills extends ConsumerWidget {
+  const _Bills();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
+    return _Page(onAdd: () => _billDialog(context, store), children: [
+      for (final bill in store.billReminders)
+        Surface(
+            child: _DeleteRow(
+                title:
+                    '${bill.title} · ${context.l10n.t('day')} ${bill.dayOfMonth}${bill.amountMinor > 0 ? ' · ${money(context, bill.amountMinor)}' : ''}',
+                onDelete: () =>
+                    store.removePlannerItem('bill_reminders', bill.id!))),
+      if (store.billReminders.isEmpty) _Empty(context.l10n.t('no_bills')),
+    ]);
+  }
 }
 
 class _Page extends StatelessWidget {

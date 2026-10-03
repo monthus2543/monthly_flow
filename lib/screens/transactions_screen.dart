@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import '../l10n/app_localizations.dart';
@@ -5,25 +6,26 @@ import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import 'entry_form_screen.dart';
 
-class TransactionsScreen extends StatefulWidget {
-  final AppStore store;
-  const TransactionsScreen({super.key, required this.store});
+class TransactionsScreen extends ConsumerStatefulWidget {
+  const TransactionsScreen({super.key});
   @override
-  State<TransactionsScreen> createState() => _TransactionsScreenState();
+  ConsumerState<TransactionsScreen> createState() => _TransactionsScreenState();
 }
 
-class _TransactionsScreenState extends State<TransactionsScreen> {
+class _TransactionsScreenState extends ConsumerState<TransactionsScreen> {
+  AppStore get store => ref.read(appStoreProvider.notifier);
   String filter = 'all';
   String search = '';
   @override
   Widget build(BuildContext context) {
+    ref.watch(appStoreProvider);
     final query = search.trim().toLowerCase();
-    final rows = widget.store.monthlyEntries.where((entry) {
+    final rows = store.monthlyEntries.where((entry) {
       if (filter == 'favorite' && !entry.isFavorite) return false;
       if (filter != 'all' && filter != 'favorite' && entry.type != filter)
         return false;
       final category =
-          categoryLabel(context, widget.store.categoryFor(entry.categoryId));
+          categoryLabel(context, store.categoryFor(entry.categoryId));
       return query.isEmpty ||
           '${entry.title} ${entry.note} $category'
               .toLowerCase()
@@ -52,7 +54,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             ],
             onChanged: (value) => setState(() => filter = value),
           ),
-          MonthButton(store: widget.store),
+          MonthButton(),
           if (rows.isEmpty)
             Surface(
                 child: Text(context.l10n.t('not_found'),
@@ -62,18 +64,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 child: Column(children: [
               for (final entry in rows)
                 TransactionTile(
-                  store: widget.store,
                   entry: entry,
                   onTap: () => Navigator.push(
                       context,
                       MaterialPageRoute<void>(
-                          builder: (_) => EntryFormScreen(
-                              store: widget.store, existing: entry))),
+                          builder: (_) => EntryFormScreen(existing: entry))),
                   onDuplicate: () => Navigator.push(
                       context,
                       MaterialPageRoute<void>(
-                          builder: (_) => EntryFormScreen(
-                              store: widget.store, initial: entry))),
+                          builder: (_) => EntryFormScreen(initial: entry))),
                 )
             ])),
         ]);

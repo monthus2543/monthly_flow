@@ -26,10 +26,12 @@ dependencies:
   currency_text_input_formatter: ^2.3.2
   animated_toggle_switch: 0.8.7
   google_fonts: 8.0.0
+  flutter_riverpod: 3.4.3
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  sqflite_common_ffi: ^2.4.3
 
 flutter:
   uses-material-design: true

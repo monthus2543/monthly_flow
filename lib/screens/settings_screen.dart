@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
@@ -11,154 +12,151 @@ import '../widgets/common_widgets.dart';
 import 'category_manager_screen.dart';
 import 'planner_screen.dart';
 
-class SettingsScreen extends StatelessWidget {
-  final AppStore store;
-  const SettingsScreen({super.key, required this.store});
+class SettingsScreen extends ConsumerStatefulWidget {
+  const SettingsScreen({super.key});
   @override
-  Widget build(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
-        children: [
-          PageTitle(
-              context.l10n.t('settings'), context.l10n.t('settings_subtitle')),
-          const SizedBox(height: 16),
-          Surface(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(context.l10n.t('display'),
-                    style:
-                        TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
-                AppSwitchTile(
-                    title: context.l10n.t('dark_mode'),
-                    value: store.darkMode,
-                    onChanged: store.setDarkMode),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('theme_color')),
-                    trailing: DropdownButton<String>(
-                        value: store.themeColor,
-                        underline: const SizedBox.shrink(),
-                        items: [
-                          _themeItem(context, 'teal', const Color(0xFF008E7B)),
-                          _themeItem(context, 'blue', const Color(0xFF2563EB)),
-                          _themeItem(
-                              context, 'purple', const Color(0xFF7C3AED)),
-                          _themeItem(
-                              context, 'orange', const Color(0xFFEA580C)),
-                          _themeItem(context, 'rose', const Color(0xFFE11D48)),
-                        ],
-                        onChanged: (value) {
-                          if (value != null && value != store.themeColor) {
-                            _changeThemeColor(context, value);
-                          }
-                        })),
-                AppSwitchTile(
-                    title: context.l10n.t('hide_balances'),
-                    value: store.hideBalances,
-                    onChanged: store.setHideBalances),
-                AppSwitchTile(
-                    title: context.l10n.t('reminders'),
-                    value: store.remindersEnabled,
-                    onChanged: store.setRemindersEnabled),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('app_pin')),
-                    subtitle: Text(context.l10n
-                        .t(store.pinHash.isEmpty ? 'pin_off' : 'pin_on')),
-                    trailing: const Icon(Icons.lock_outline),
-                    onTap: () => _configurePin(context)),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('language')),
-                    trailing: DropdownButton<String>(
-                        value: store.languageCode,
-                        underline: const SizedBox.shrink(),
-                        items: [
-                          DropdownMenuItem(
-                              value: 'th', child: Text(context.l10n.t('thai'))),
-                          DropdownMenuItem(
-                              value: 'en',
-                              child: Text(context.l10n.t('english')))
-                        ],
-                        onChanged: (value) {
-                          if (value != null && value != store.languageCode) {
-                            _changeLanguage(context, value);
-                          }
-                        })),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('currency')),
-                    trailing: const Text('THB (฿)')),
-              ])),
-          const SizedBox(height: 13),
-          Surface(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(context.l10n.t('my_data'),
-                    style: const TextStyle(
-                        fontSize: 16, fontWeight: FontWeight.w600)),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('planner')),
-                    leading: const Icon(Icons.auto_graph_outlined),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) => PlannerScreen(store: store)))),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('category')),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute<void>(
-                            builder: (_) =>
-                                CategoryManagerScreen(store: store)))),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('copy_csv')),
-                    trailing: const Icon(Icons.copy_outlined),
-                    onTap: () async {
-                      await Clipboard.setData(
-                          ClipboardData(text: store.exportCsv()));
-                      if (context.mounted)
-                        showAppAlert(context, context.l10n.t('csv_copied'));
-                    }),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('export_backup')),
-                    trailing: const Icon(Icons.ios_share_outlined),
-                    onTap: () => _exportBackup(context)),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('import_backup')),
-                    trailing: const Icon(Icons.file_open_outlined),
-                    onTap: () => _importBackup(context)),
-              ])),
-          const SizedBox(height: 13),
-          Surface(
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                Text(context.l10n.t('local_data'),
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.primary,
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600)),
-                const SizedBox(height: 5),
-                Text(context.l10n.t('offline'),
-                    style: const TextStyle(color: muted, fontSize: 12)),
-                ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(context.l10n.t('clear_all'),
-                        style: const TextStyle(color: expenseRed)),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => _clear(context)),
-              ])),
-        ],
-      );
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
+}
+
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  AppStore get store => ref.read(appStoreProvider.notifier);
+  @override
+  Widget build(BuildContext context) {
+    ref.watch(appStoreProvider);
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
+      children: [
+        PageTitle(
+            context.l10n.t('settings'), context.l10n.t('settings_subtitle')),
+        const SizedBox(height: 16),
+        Surface(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(context.l10n.t('display'),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          AppSwitchTile(
+              title: context.l10n.t('dark_mode'),
+              value: store.darkMode,
+              onChanged: store.setDarkMode),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('theme_color')),
+              trailing: DropdownButton<String>(
+                  value: store.themeColor,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    _themeItem(context, 'teal', AppColors.teal),
+                    _themeItem(context, 'blue', AppColors.blue),
+                    _themeItem(context, 'purple', AppColors.purple),
+                    _themeItem(context, 'orange', AppColors.orange),
+                    _themeItem(context, 'rose', AppColors.rose),
+                  ],
+                  onChanged: (value) {
+                    if (value != null && value != store.themeColor) {
+                      _changeThemeColor(context, value);
+                    }
+                  })),
+          AppSwitchTile(
+              title: context.l10n.t('hide_balances'),
+              value: store.hideBalances,
+              onChanged: store.setHideBalances),
+          AppSwitchTile(
+              title: context.l10n.t('reminders'),
+              value: store.remindersEnabled,
+              onChanged: store.setRemindersEnabled),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('app_pin')),
+              subtitle: Text(
+                  context.l10n.t(store.pinHash.isEmpty ? 'pin_off' : 'pin_on')),
+              trailing: const Icon(Icons.lock_outline),
+              onTap: () => _configurePin(context)),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('language')),
+              trailing: DropdownButton<String>(
+                  value: store.languageCode,
+                  underline: const SizedBox.shrink(),
+                  items: [
+                    DropdownMenuItem(
+                        value: 'th', child: Text(context.l10n.t('thai'))),
+                    DropdownMenuItem(
+                        value: 'en', child: Text(context.l10n.t('english')))
+                  ],
+                  onChanged: (value) {
+                    if (value != null && value != store.languageCode) {
+                      _changeLanguage(context, value);
+                    }
+                  })),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('currency')),
+              trailing: const Text('THB (฿)')),
+        ])),
+        const SizedBox(height: 13),
+        Surface(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(context.l10n.t('my_data'),
+              style:
+                  const TextStyle(fontSize: 16, fontWeight: FontWeight.w600)),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('planner')),
+              leading: const Icon(Icons.auto_graph_outlined),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute<void>(builder: (_) => PlannerScreen()))),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('category')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(
+                  context,
+                  MaterialPageRoute<void>(
+                      builder: (_) => CategoryManagerScreen()))),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('copy_csv')),
+              trailing: const Icon(Icons.copy_outlined),
+              onTap: () async {
+                await Clipboard.setData(ClipboardData(text: store.exportCsv()));
+                if (context.mounted)
+                  showAppAlert(context, context.l10n.t('csv_copied'));
+              }),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('export_backup')),
+              trailing: const Icon(Icons.ios_share_outlined),
+              onTap: () => _exportBackup(context)),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('import_backup')),
+              trailing: const Icon(Icons.file_open_outlined),
+              onTap: () => _importBackup(context)),
+        ])),
+        const SizedBox(height: 13),
+        Surface(
+            child:
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Text(context.l10n.t('local_data'),
+              style: TextStyle(
+                  color: Theme.of(context).colorScheme.primary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 5),
+          Text(context.l10n.t('offline'),
+              style: const TextStyle(color: muted, fontSize: 12)),
+          ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(context.l10n.t('clear_all'),
+                  style: const TextStyle(color: expenseRed)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => _clear(context)),
+        ])),
+      ],
+    );
+  }
 
   Future<void> _exportBackup(BuildContext context) async {
     try {

@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import '../l10n/app_localizations.dart';
@@ -7,19 +8,25 @@ import '../widgets/monthly_bars.dart';
 import 'planner_screen.dart';
 import 'daily_trend_screen.dart';
 
-class DashboardScreen extends StatelessWidget {
-  final AppStore store;
+class DashboardScreen extends ConsumerStatefulWidget {
   final ValueChanged<int>? onNavigate;
-  const DashboardScreen({super.key, required this.store, this.onNavigate});
+  const DashboardScreen({super.key, this.onNavigate});
+  @override
+  ConsumerState<DashboardScreen> createState() => _DashboardScreenState();
+}
+
+class _DashboardScreenState extends ConsumerState<DashboardScreen> {
+  AppStore get store => ref.read(appStoreProvider.notifier);
   @override
   Widget build(BuildContext context) {
+    ref.watch(appStoreProvider);
     final rows = store.monthlyEntries;
     return ListView(
         padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
         children: [
           PageTitle(
               context.l10n.t('dashboard'), context.l10n.t('overview_subtitle')),
-          MonthButton(store: store),
+          MonthButton(),
           Surface(
                   gradient: brandGradient(context),
                   child: Column(
@@ -58,7 +65,7 @@ class DashboardScreen extends StatelessWidget {
                     onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute<void>(
-                            builder: (_) => PlannerScreen(store: store))),
+                            builder: (_) => PlannerScreen())),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -87,10 +94,11 @@ class DashboardScreen extends StatelessWidget {
             const SizedBox(height: 14),
           ],
           Surface(
-                  onTap: () => Navigator.push(
-                      context,
-                      MaterialPageRoute<void>(
-                          builder: (_) => DailyTrendScreen(store: store))),
+                  onTap: () =>
+                      Navigator.push(
+                          context,
+                          MaterialPageRoute<void>(
+                              builder: (_) => DailyTrendScreen())),
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -98,7 +106,7 @@ class DashboardScreen extends StatelessWidget {
                             style: const TextStyle(
                                 fontSize: 16, fontWeight: FontWeight.w600)),
                         const SizedBox(height: 15),
-                        MonthlyBars(store: store),
+                        MonthlyBars(),
                       ]))
               .animate(delay: 100.ms)
               .fadeIn(duration: 420.ms)
@@ -114,7 +122,7 @@ class DashboardScreen extends StatelessWidget {
                           style: const TextStyle(
                               fontSize: 16, fontWeight: FontWeight.w600))),
                   IconButton(
-                      onPressed: () => onNavigate?.call(1),
+                      onPressed: () => widget.onNavigate?.call(1),
                       icon: const Icon(Icons.chevron_right))
                 ]),
                 if (rows.isEmpty)
@@ -124,7 +132,7 @@ class DashboardScreen extends StatelessWidget {
                           style: const TextStyle(color: muted)))
                 else
                   for (final entry in rows.take(3))
-                    TransactionTile(store: store, entry: entry),
+                    TransactionTile(entry: entry),
               ]))
               .animate(delay: 170.ms)
               .fadeIn(duration: 420.ms)

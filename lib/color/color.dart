@@ -1,0 +1,66 @@
+import 'package:flutter/material.dart';
+
+/// Shared palette. Screens should use Theme.of(context).colorScheme for themed colors.
+abstract final class AppColors {
+  static const teal = Color(0xFF008E7B);
+  static const tealDark = Color(0xFF62E6CA);
+  static const blue = Color(0xFF2563EB);
+  static const blueDark = Color(0xFF78A9FF);
+  static const purple = Color(0xFF7C3AED);
+  static const purpleDark = Color(0xFFB99AFF);
+  static const orange = Color(0xFFEA580C);
+  static const orangeDark = Color(0xFFFFB274);
+  static const rose = Color(0xFFE11D48);
+  static const roseDark = Color(0xFFFF8CA5);
+  static const secondaryDark = Color(0xFFFFC985);
+  static const secondary = Color(0xFFF49A3F);
+  static const accentBlueDark = Color(0xFF8EABFF);
+  static const accentBlue = Color(0xFF4D7CFE);
+  static const errorDark = Color(0xFFFF8B80);
+  static const error = Color(0xFFFF5F52);
+  static const surfaceDark = Color(0xFF121212);
+  static const surface = Color(0xFFFFFBF7);
+  static const scaffold = Color(0xFFF4FAF8);
+  static const textDark = Color(0xFFF5F5F5);
+  static const text = Color(0xFF123C39);
+  static const navigationDark = Color(0xFF0A0A0A);
+  static const navigationIndicatorDark = Color(0xFF24312E);
+  static const navigationIndicator = Color(0xFFCFF8ED);
+  static const onSecondary = Color(0xFF3A2100);
+  static const dividerDark = Color(0xFF303030);
+  static const divider = Color(0xFFD7EEE8);
+  static const inputDark = Color(0xFF151515);
+  static const inputBorderDark = Color(0xFF383838);
+  static const expense = Color(0xFFFF6B5E);
+  static const accentOrange = Color(0xFFFFA63D);
+  static const muted = Color(0xFF66777A);
+  static const black = Color(0xFF000000);
+  static const backgroundDarkMiddle = Color(0xFF080808);
+  static const backgroundStart = Color(0xFFE3F3F4);
+  static const backgroundMiddle = Color(0xFFF9FAF6);
+  static const backgroundEnd = Color(0xFFFFF4E8);
+  static const incomeContainer = Color(0xFFD9FAF1);
+  static const expenseContainer = Color(0xFFFFE4DF);
+  static const favorite = Color(0xFFF59E0B);
+  static const splashStart = Color(0xFFDDF4FF);
+  static const splashMiddle = Color(0xFFF1FAFF);
+  static const splashEnd = Color(0xFFE8FFF8);
+  static const splashBlueGlow = Color(0xFF8DD8FF);
+  static const splashTealGlow = Color(0xFF72E4D0);
+  static const splashLogoStart = Color(0xFF52BFFF);
+  static const splashLogoEnd = Color(0xFF00A884);
+  static const splashLogoShadow = Color(0xFF319FC5);
+  static const splashTitleDark = Color(0xFFE8FBFF);
+  static const splashTitle = Color(0xFF123D55);
+  static const splashSubtitleDark = Color(0xFFA8C8D0);
+  static const splashSubtitle = Color(0xFF55798A);
+  static const splashCaptionDark = Color(0xFF8FB2BB);
+  static const splashCaption = Color(0xFF648797);
+}
+
+// Shared chart and transaction colors.
+const brandGreen = AppColors.teal;
+const expenseRed = AppColors.expense;
+const accentBlue = AppColors.accentBlue;
+const accentOrange = AppColors.accentOrange;
+const muted = AppColors.muted;

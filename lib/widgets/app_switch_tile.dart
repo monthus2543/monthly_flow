@@ -34,6 +34,14 @@ class AppSwitchTile extends StatelessWidget {
             borderWidth: 4,
             selectedIconScale: 1,
             iconBuilder: (_) => const SizedBox.shrink(),
+            foregroundIndicatorIconBuilder: (context, global) => Icon(
+              Icons.menu_rounded,
+              size: 16,
+              color: (value
+                      ? theme.colorScheme.primary
+                      : theme.colorScheme.onSurfaceVariant)
+                  .withValues(alpha: .20),
+            ),
             loading: false,
             animationDuration: MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
@@ -49,9 +57,7 @@ class AppSwitchTile extends StatelessWidget {
               backgroundColor: enabled
                   ? theme.colorScheme.primary
                   : theme.colorScheme.surfaceContainerHighest,
-              indicatorColor: enabled
-                  ? theme.colorScheme.onPrimary
-                  : theme.colorScheme.onSurfaceVariant,
+              indicatorColor: Colors.white,
             ),
           ),
         ),

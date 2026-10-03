@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -5,12 +6,14 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import 'common_widgets.dart';
 
-class MonthlyBars extends StatelessWidget {
-  final AppStore store;
+class MonthlyBars extends ConsumerWidget {
   final VoidCallback? onTap;
-  const MonthlyBars({super.key, required this.store, this.onTap});
+  const MonthlyBars({super.key, this.onTap});
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
     final points = List.generate(6, (i) {
       final date =
           DateTime(store.selectedMonth.year, store.selectedMonth.month - 5 + i);

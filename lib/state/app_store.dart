@@ -1,4 +1,5 @@
-import 'package:flutter/foundation.dart' hide Category;
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'app_state.dart';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
@@ -6,41 +7,63 @@ import '../database/app_database.dart';
 import '../models/finance_models.dart';
 import '../repositories/finance_repository.dart';
 
-class AppStore extends ChangeNotifier {
-  final AppDatabase database;
-  FinanceRepository? _repository;
-  AppStore({AppDatabase? database}) : database = database ?? AppDatabase();
+final appDatabaseProvider = Provider<AppDatabase>((ref) {
+  final database = AppDatabase();
+  ref.onDispose(database.close);
+  return database;
+});
 
-  List<Entry> entries = [];
-  List<Category> categories = [];
-  List<Account> accounts = [];
-  List<Budget> budgets = [];
-  List<RecurringRule> recurringRules = [];
-  List<SavingGoal> savingGoals = [];
-  List<BillReminder> billReminders = [];
-  DateTime selectedMonth = DateTime(DateTime.now().year, DateTime.now().month);
-  bool darkMode = false;
-  String languageCode = 'th';
-  String themeColor = 'teal';
-  bool hideBalances = false;
-  bool remindersEnabled = true;
-  String pinHash = '';
+final appStoreProvider = NotifierProvider<AppStore, AppState>(AppStore.new);
+
+final appStartupProvider = FutureProvider<void>((ref) async {
+  await ref.read(appStoreProvider.notifier).open();
+}, retry: (retryCount, error) => null);
+
+class AppStore extends Notifier<AppState> {
+  late AppDatabase database;
+  FinanceRepository? _repository;
+
+  @override
+  AppState build() {
+    database = ref.read(appDatabaseProvider);
+    return AppState();
+  }
+
+  List<Entry> get entries => state.entries;
+  List<Category> get categories => state.categories;
+  List<Account> get accounts => state.accounts;
+  List<Budget> get budgets => state.budgets;
+  List<RecurringRule> get recurringRules => state.recurringRules;
+  List<SavingGoal> get savingGoals => state.savingGoals;
+  List<BillReminder> get billReminders => state.billReminders;
+  DateTime get selectedMonth => state.selectedMonth;
+  bool get darkMode => state.darkMode;
+  String get languageCode => state.languageCode;
+  String get themeColor => state.themeColor;
+  bool get hideBalances => state.hideBalances;
+  bool get remindersEnabled => state.remindersEnabled;
+  String get pinHash => state.pinHash;
 
   Future<void> open() async {
     _repository = FinanceRepository(await database.open());
     final values = await _repository!.settings();
-    darkMode = values['theme_mode'] == 'dark' || values['dark_mode'] == '1';
-    languageCode = values['language_code'] == 'en' ? 'en' : 'th';
     const themeColors = {'teal', 'blue', 'purple', 'orange', 'rose'};
-    themeColor = themeColors.contains(values['theme_color'])
-        ? values['theme_color']!
-        : 'teal';
-    hideBalances = values['hide_balances'] == '1';
-    remindersEnabled = values['reminders_enabled'] != '0';
-    pinHash = values['pin_hash'] ?? '';
     final parsed = DateTime.tryParse(values['selected_month'] ?? '');
-    if (parsed != null) selectedMonth = DateTime(parsed.year, parsed.month);
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      darkMode: values['theme_mode'] == 'dark' || values['dark_mode'] == '1',
+      languageCode: values['language_code'] == 'en' ? 'en' : 'th',
+      themeColor: themeColors.contains(values['theme_color'])
+          ? values['theme_color']!
+          : 'teal',
+      hideBalances: values['hide_balances'] == '1',
+      remindersEnabled: values['reminders_enabled'] != '0',
+      pinHash: values['pin_hash'] ?? '',
+      selectedMonth:
+          parsed == null ? selectedMonth : DateTime(parsed.year, parsed.month),
+    );
     await refresh();
+    if (!ref.mounted) return;
     await _generateAutomaticRecurringThrough(DateTime.now());
   }
 
@@ -54,14 +77,16 @@ class AppStore extends ChangeNotifier {
       _repository!.savingGoals(),
       _repository!.billReminders(),
     ]);
-    categories = values[0] as List<Category>;
-    entries = values[1] as List<Entry>;
-    accounts = values[2] as List<Account>;
-    budgets = values[3] as List<Budget>;
-    recurringRules = values[4] as List<RecurringRule>;
-    savingGoals = values[5] as List<SavingGoal>;
-    billReminders = values[6] as List<BillReminder>;
-    notifyListeners();
+    if (!ref.mounted) return;
+    state = state.copyWith(
+      categories: values[0] as List<Category>,
+      entries: values[1] as List<Entry>,
+      accounts: values[2] as List<Account>,
+      budgets: values[3] as List<Budget>,
+      recurringRules: values[4] as List<RecurringRule>,
+      savingGoals: values[5] as List<SavingGoal>,
+      billReminders: values[6] as List<BillReminder>,
+    );
   }
 
   List<Entry> get monthlyEntries =>
@@ -124,42 +149,41 @@ class AppStore extends ChangeNotifier {
   }
 
   Future<void> changeMonth(DateTime date) async {
-    selectedMonth = DateTime(date.year, date.month);
-    await _repository!
-        .setting('selected_month', selectedMonth.toIso8601String());
-    notifyListeners();
+    final next = DateTime(date.year, date.month);
+    await _repository!.setting('selected_month', next.toIso8601String());
+    if (ref.mounted) state = state.copyWith(selectedMonth: next);
   }
 
   Future<void> setDarkMode(bool value) async {
-    darkMode = value;
-    await _repository!.setting('theme_mode', value ? 'dark' : 'light');
-    notifyListeners();
+    final next = value;
+    await _repository!.setting('theme_mode', next ? 'dark' : 'light');
+    if (ref.mounted) state = state.copyWith(darkMode: next);
   }
 
   Future<void> setThemeColor(String value) async {
     const supported = {'teal', 'blue', 'purple', 'orange', 'rose'};
     if (!supported.contains(value)) return;
-    themeColor = value;
-    await _repository!.setting('theme_color', value);
-    notifyListeners();
+    final next = value;
+    await _repository!.setting('theme_color', next);
+    if (ref.mounted) state = state.copyWith(themeColor: next);
   }
 
   Future<void> setLanguage(String code) async {
-    languageCode = code == 'en' ? 'en' : 'th';
-    await _repository!.setting('language_code', languageCode);
-    notifyListeners();
+    final next = code == 'en' ? 'en' : 'th';
+    await _repository!.setting('language_code', next);
+    if (ref.mounted) state = state.copyWith(languageCode: next);
   }
 
   Future<void> setHideBalances(bool value) async {
-    hideBalances = value;
-    await _repository!.setting('hide_balances', value ? '1' : '0');
-    notifyListeners();
+    final next = value;
+    await _repository!.setting('hide_balances', next ? '1' : '0');
+    if (ref.mounted) state = state.copyWith(hideBalances: next);
   }
 
   Future<void> setRemindersEnabled(bool value) async {
-    remindersEnabled = value;
-    await _repository!.setting('reminders_enabled', value ? '1' : '0');
-    notifyListeners();
+    final next = value;
+    await _repository!.setting('reminders_enabled', next ? '1' : '0');
+    if (ref.mounted) state = state.copyWith(remindersEnabled: next);
   }
 
   bool verifyPin(String value) =>
@@ -167,10 +191,10 @@ class AppStore extends ChangeNotifier {
       sha256.convert(utf8.encode(value)).toString() == pinHash;
 
   Future<void> setPin(String value) async {
-    pinHash =
+    final next =
         value.isEmpty ? '' : sha256.convert(utf8.encode(value)).toString();
-    await _repository!.setting('pin_hash', pinHash);
-    notifyListeners();
+    await _repository!.setting('pin_hash', next);
+    if (ref.mounted) state = state.copyWith(pinHash: next);
   }
 
   Future<void> saveCategory(Category value) async {
@@ -407,11 +431,5 @@ class AppStore extends ChangeNotifier {
     }
     await _repository!.replaceBackup(backup);
     await open();
-  }
-
-  @override
-  void dispose() {
-    database.close();
-    super.dispose();
   }
 }

@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
@@ -8,12 +9,13 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 
-class DailyTrendScreen extends StatelessWidget {
-  final AppStore store;
-  const DailyTrendScreen({super.key, required this.store});
+class DailyTrendScreen extends ConsumerWidget {
+  const DailyTrendScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    ref.watch(appStoreProvider);
+    final store = ref.read(appStoreProvider.notifier);
     final days =
         DateTime(store.selectedMonth.year, store.selectedMonth.month + 1, 0)
             .day;
@@ -27,7 +29,7 @@ class DailyTrendScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
         children: [
-          MonthButton(store: store),
+          MonthButton(),
           Text(monthLabel(context, store.selectedMonth),
               style:
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),

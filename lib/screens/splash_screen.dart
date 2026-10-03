@@ -1,3 +1,4 @@
+import '../color/color.dart';
 import 'package:flutter/material.dart';
 import 'package:lucide_icons_flutter/lucide_icons.dart';
 import 'package:skeletonizer/skeletonizer.dart';
@@ -18,14 +19,14 @@ class SplashScreen extends StatelessWidget {
             end: Alignment.bottomRight,
             colors: dark
                 ? const [
-                    Color(0xFF000000),
-                    Color(0xFF080808),
-                    Color(0xFF000000)
+                    AppColors.black,
+                    AppColors.backgroundDarkMiddle,
+                    AppColors.black
                   ]
                 : const [
-                    Color(0xFFDDF4FF),
-                    Color(0xFFF1FAFF),
-                    Color(0xFFE8FFF8)
+                    AppColors.splashStart,
+                    AppColors.splashMiddle,
+                    AppColors.splashEnd
                   ],
           ),
         ),
@@ -36,14 +37,14 @@ class SplashScreen extends StatelessWidget {
               child: _GlowCircle(
                   size: 230,
                   color:
-                      (dark ? const Color(0xFF4D7CFE) : const Color(0xFF8DD8FF))
+                      (dark ? AppColors.accentBlue : AppColors.splashBlueGlow)
                           .withValues(alpha: .22))),
           Positioned(
               bottom: -110,
               left: -80,
               child: _GlowCircle(
                   size: 270,
-                  color: (dark ? scheme.primary : const Color(0xFF72E4D0))
+                  color: (dark ? scheme.primary : AppColors.splashTealGlow)
                       .withValues(alpha: .18))),
           SafeArea(
             child: LayoutBuilder(
@@ -62,7 +63,10 @@ class SplashScreen extends StatelessWidget {
                             gradient: const LinearGradient(
                               begin: Alignment.topLeft,
                               end: Alignment.bottomRight,
-                              colors: [Color(0xFF52BFFF), Color(0xFF00A884)],
+                              colors: [
+                                AppColors.splashLogoStart,
+                                AppColors.splashLogoEnd
+                              ],
                             ),
                             borderRadius: BorderRadius.circular(32),
                             border: Border.all(
@@ -70,7 +74,7 @@ class SplashScreen extends StatelessWidget {
                                 width: 3),
                             boxShadow: [
                               BoxShadow(
-                                  color: const Color(0xFF319FC5)
+                                  color: AppColors.splashLogoShadow
                                       .withValues(alpha: .28),
                                   blurRadius: 30,
                                   offset: const Offset(0, 14))
@@ -87,8 +91,8 @@ class SplashScreen extends StatelessWidget {
                                 fontWeight: FontWeight.w600,
                                 letterSpacing: -.7,
                                 color: dark
-                                    ? const Color(0xFFE8FBFF)
-                                    : const Color(0xFF123D55))),
+                                    ? AppColors.splashTitleDark
+                                    : AppColors.splashTitle)),
                         const SizedBox(height: 8),
                         Text(context.l10n.t('tagline'),
                             textAlign: TextAlign.center,
@@ -96,8 +100,8 @@ class SplashScreen extends StatelessWidget {
                                 fontSize: 14,
                                 height: 1.45,
                                 color: dark
-                                    ? const Color(0xFFA8C8D0)
-                                    : const Color(0xFF55798A))),
+                                    ? AppColors.splashSubtitleDark
+                                    : AppColors.splashSubtitle)),
                         const SizedBox(height: 34),
                         const _DashboardSkeleton(),
                         const SizedBox(height: 18),
@@ -105,8 +109,8 @@ class SplashScreen extends StatelessWidget {
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 color: dark
-                                    ? const Color(0xFF8FB2BB)
-                                    : const Color(0xFF648797),
+                                    ? AppColors.splashCaptionDark
+                                    : AppColors.splashCaption,
                                 fontSize: 12,
                                 fontWeight: FontWeight.w600)),
                         const Spacer(),
