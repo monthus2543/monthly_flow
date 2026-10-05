@@ -6,46 +6,66 @@ class FinanceRepository {
   final Database db;
   const FinanceRepository(this.db);
 
-  Future<List<Category>> categories() async => (await db.query('categories',
-          where: 'is_active = 1', orderBy: 'sort_order ASC, id ASC'))
-      .map(Category.fromMap)
-      .toList();
+  Future<List<Category>> categories() async => (await db.query(
+    'categories',
+    where: 'is_active = 1',
+    orderBy: 'sort_order ASC, id ASC',
+  )).map(Category.fromMap).toList();
 
-  Future<List<Entry>> entries() async => (await db.query('transactions',
-          orderBy: 'transaction_date DESC, created_at DESC, id DESC'))
-      .map(Entry.fromMap)
-      .toList();
+  Future<List<Entry>> entries() async => (await db.query(
+    'transactions',
+    orderBy: 'transaction_date DESC, created_at DESC, id DESC',
+  )).map(Entry.fromMap).toList();
 
-  Future<List<Account>> accounts() async =>
-      (await db.query('accounts', where: 'is_active = 1', orderBy: 'id ASC'))
-          .map(Account.fromMap)
-          .toList();
+  Future<List<Account>> accounts() async => (await db.query(
+    'accounts',
+    where: 'is_active = 1',
+    orderBy: 'id ASC',
+  )).map(Account.fromMap).toList();
   Future<List<Budget>> budgets() async =>
       (await db.query('budgets')).map(Budget.fromMap).toList();
-  Future<List<RecurringRule>> recurringRules() async =>
-      (await db.query('recurring_rules', orderBy: 'day_of_month ASC'))
-          .map(RecurringRule.fromMap)
-          .toList();
-  Future<List<SavingGoal>> savingGoals() async =>
-      (await db.query('saving_goals', orderBy: 'id DESC'))
-          .map(SavingGoal.fromMap)
-          .toList();
-  Future<List<BillReminder>> billReminders() async =>
-      (await db.query('bill_reminders', orderBy: 'day_of_month ASC'))
-          .map(BillReminder.fromMap)
-          .toList();
+  Future<List<RecurringRule>> recurringRules() async => (await db.query(
+    'recurring_rules',
+    orderBy: 'day_of_month ASC',
+  )).map(RecurringRule.fromMap).toList();
+  Future<List<SavingGoal>> savingGoals() async => (await db.query(
+    'saving_goals',
+    orderBy: 'id DESC',
+  )).map(SavingGoal.fromMap).toList();
+  Future<List<BillReminder>> billReminders() async => (await db.query(
+    'bill_reminders',
+    orderBy: 'day_of_month ASC',
+  )).map(BillReminder.fromMap).toList();
 
   Future<Map<String, String>> settings() async => {
-        for (final row in await db.query('settings'))
-          row['key'] as String: row['value'] as String,
-      };
+    for (final row in await db.query('settings'))
+      row['key'] as String: row['value'] as String,
+  };
+
+  Future<void> completeOnboarding(String name) async {
+    await db.transaction((txn) async {
+      for (final entry in {
+        'local_name': name,
+        'onboarding_completed': '1',
+      }.entries) {
+        await txn.insert('settings', {
+          'key': entry.key,
+          'value': entry.value,
+        }, conflictAlgorithm: ConflictAlgorithm.replace);
+      }
+    });
+  }
 
   Future<void> save(Entry entry) async {
     if (entry.id == null) {
       await db.insert('transactions', entry.toMap());
     } else {
-      await db.update('transactions', entry.toMap(),
-          where: 'id = ?', whereArgs: [entry.id]);
+      await db.update(
+        'transactions',
+        entry.toMap(),
+        where: 'id = ?',
+        whereArgs: [entry.id],
+      );
     }
   }
 
@@ -63,8 +83,12 @@ class FinanceRepository {
     if (value.id <= 0) {
       await db.insert('categories', value.toMap());
     } else {
-      await db.update('categories', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'categories',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
     }
   }
 
@@ -72,33 +96,78 @@ class FinanceRepository {
     if (value.id == null)
       await db.insert('accounts', value.toMap());
     else
-      await db.update('accounts', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'accounts',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
   }
 
   Future<void> saveBudget(Budget value) async {
     if (value.id == null)
-      await db.insert('budgets', value.toMap(),
-          conflictAlgorithm: ConflictAlgorithm.replace);
+      await db.insert(
+        'budgets',
+        value.toMap(),
+        conflictAlgorithm: ConflictAlgorithm.replace,
+      );
     else
-      await db.update('budgets', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'budgets',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
   }
 
   Future<void> saveRecurringRule(RecurringRule value) async {
     if (value.id == null)
       await db.insert('recurring_rules', value.toMap());
     else
-      await db.update('recurring_rules', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'recurring_rules',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
   }
 
   Future<void> recordRecurringOccurrence(
-      RecurringRule rule, Entry entry, String monthKey) async {
+    RecurringRule rule,
+    Entry entry,
+    String monthKey,
+  ) async {
     await db.transaction((txn) async {
-      await txn.insert('transactions', entry.toMap());
-      await txn.update('recurring_rules', {'last_generated_month': monthKey},
-          where: 'id = ?', whereArgs: [rule.id]);
+      final identity = await txn.query(
+        'sync_records',
+        where: "table_name='recurring_rules' AND local_id=?",
+        whereArgs: [rule.id],
+      );
+      final occurrenceId = identity.isEmpty
+          ? null
+          : 'occurrence_${identity.single['entity_id']}_$monthKey';
+      final exists = occurrenceId == null
+          ? <Map<String, Object?>>[]
+          : await txn.query(
+              'sync_records',
+              where: 'entity_id=?',
+              whereArgs: [occurrenceId],
+            );
+      if (exists.isEmpty) {
+        final entryId = await txn.insert('transactions', entry.toMap());
+        if (occurrenceId != null) {
+          await txn.update(
+            'sync_records',
+            {'entity_id': occurrenceId},
+            where: "table_name='transactions' AND local_id=?",
+            whereArgs: [entryId],
+          );
+        }
+      }
+      await txn.rawUpdate(
+        "UPDATE recurring_rules SET last_generated_month=MAX(last_generated_month,?) WHERE id=?",
+        [monthKey, rule.id],
+      );
     });
   }
 
@@ -106,16 +175,24 @@ class FinanceRepository {
     if (value.id == null)
       await db.insert('saving_goals', value.toMap());
     else
-      await db.update('saving_goals', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'saving_goals',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
   }
 
   Future<void> saveReminder(BillReminder value) async {
     if (value.id == null)
       await db.insert('bill_reminders', value.toMap());
     else
-      await db.update('bill_reminders', value.toMap(),
-          where: 'id = ?', whereArgs: [value.id]);
+      await db.update(
+        'bill_reminders',
+        value.toMap(),
+        where: 'id = ?',
+        whereArgs: [value.id],
+      );
   }
 
   Future<void> removePlannerItem(String table, int id) async {
@@ -123,7 +200,7 @@ class FinanceRepository {
       'budgets',
       'recurring_rules',
       'saving_goals',
-      'bill_reminders'
+      'bill_reminders',
     };
     if (!allowed.contains(table)) throw ArgumentError.value(table, 'table');
     final deleted = await db.delete(table, where: 'id = ?', whereArgs: [id]);
@@ -131,8 +208,12 @@ class FinanceRepository {
   }
 
   Future<void> deactivateAccount(int id) async {
-    final updated = await db.update('accounts', {'is_active': 0},
-        where: 'id = ? AND id != 1', whereArgs: [id]);
+    final updated = await db.update(
+      'accounts',
+      {'is_active': 0},
+      where: 'id = ? AND id != 1',
+      whereArgs: [id],
+    );
     if (updated == 0) throw StateError('Account not found or protected');
   }
 
@@ -140,7 +221,8 @@ class FinanceRepository {
       db.transaction(action);
   Future<List<Map<String, Object?>>> table(String name) => db.query(name);
   Future<void> replaceBackup(
-      Map<String, List<Map<String, Object?>>> backup) async {
+    Map<String, List<Map<String, Object?>>> backup,
+  ) async {
     const insertOrder = [
       'categories',
       'accounts',
@@ -149,7 +231,7 @@ class FinanceRepository {
       'recurring_rules',
       'saving_goals',
       'bill_reminders',
-      'settings'
+      'settings',
     ];
     await db.transaction((txn) async {
       const deleteOrder = [
@@ -160,22 +242,26 @@ class FinanceRepository {
         'bill_reminders',
         'categories',
         'accounts',
-        'settings'
+        'settings',
       ];
       for (final name in deleteOrder) {
         await txn.delete(name);
       }
       for (final name in insertOrder) {
         for (final row in backup[name] ?? const <Map<String, Object?>>[]) {
-          await txn.insert(name, row,
-              conflictAlgorithm: ConflictAlgorithm.replace);
+          await txn.insert(
+            name,
+            row,
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
         }
       }
     });
   }
 
   Future<void> clearEntries() => db.delete('transactions');
-  Future<void> setting(String key, String value) =>
-      db.insert('settings', {'key': key, 'value': value},
-          conflictAlgorithm: ConflictAlgorithm.replace);
+  Future<void> setting(String key, String value) => db.insert('settings', {
+    'key': key,
+    'value': value,
+  }, conflictAlgorithm: ConflictAlgorithm.replace);
 }

@@ -121,3 +121,10 @@ Settings ควรเก็บธีมและค่าที่เลือ�
 หลัง Google Login และรายงาน Excel เพิ่มตัวเลือกบันทึกลง Google Drive พร้อมสิทธิ์ `drive.file` บันทึกลงเครื่องเมื่อออฟไลน์ และลองอัปโหลดใหม่ได้
 
 ดูขั้นตอนและเงื่อนไขจบงานใน [แผนส่งออก Excel ไป Google Drive](docs/GOOGLE_DRIVE_EXPORT_PLAN.md) และหน้า 05 ของไฟล์ Monthly Flow ใน Penpot
+
+
+## Google Login — รอบแรก
+
+เข้าสู่ระบบด้วย Google ผ่าน Firebase Authentication จากหน้าตั้งค่า มีหน้าบัญชี คืนสถานะ session และออกจากระบบ ข้อมูลการเงินยังเป็นข้อมูลในเครื่องและยังไม่ได้แยกตามบัญชี
+
+ดูการตั้งค่า Firebase และขั้นตอนทดสอบจริงใน [คู่มือ Google Login](docs/GOOGLE_LOGIN_SETUP.md)

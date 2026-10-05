@@ -1,16 +1,25 @@
 import 'package:sqflite/sqflite.dart';
+import 'dart:convert';
+import 'package:crypto/crypto.dart';
+import '../sync/sync_local.dart';
 
 import '../models/finance_models.dart';
 
 class AppDatabase {
   Database? _database;
+  final String? accountId;
+  AppDatabase({this.accountId});
 
   Future<Database> open() async {
     if (_database != null) return _database!;
     final base = await getDatabasesPath();
-    _database = await openDatabase('$base/monthly_flow.db',
-        version: 5,
-        onConfigure: (db) => db.execute('PRAGMA foreign_keys = ON'),
+    final name = accountId == null ? 'monthly_flow' : 'monthly_flow_${sha256.convert(utf8.encode(accountId!))}';
+    _database = await openDatabase('$base/$name.db',
+        version: 6,
+        onConfigure: (db) async {
+          await db.execute('PRAGMA foreign_keys = ON');
+          await db.execute('PRAGMA recursive_triggers = ON');
+        },
         onCreate: (db, version) async {
           await db.execute('''CREATE TABLE categories (
           id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
@@ -31,6 +40,7 @@ class AppDatabase {
               'CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)');
           await _seedCategories(db);
           await _createPlannerTables(db);
+          await initializeSyncSchema(db);
         },
         onUpgrade: (db, oldVersion, newVersion) async {
           if (oldVersion < 2) {
@@ -56,6 +66,7 @@ class AppDatabase {
             await db.execute(
                 "ALTER TABLE recurring_rules ADD COLUMN start_month TEXT NOT NULL DEFAULT ''");
           }
+          if (oldVersion < 6) await initializeSyncSchema(db);
         });
     return _database!;
   }

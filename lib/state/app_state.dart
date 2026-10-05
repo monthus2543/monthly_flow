@@ -16,6 +16,8 @@ class AppState {
   final bool hideBalances;
   final bool remindersEnabled;
   final String pinHash;
+  final bool onboardingCompleted;
+  final String localName;
 
   AppState({
     List<Entry>? entries,
@@ -32,6 +34,8 @@ class AppState {
     this.hideBalances = false,
     this.remindersEnabled = true,
     this.pinHash = '',
+    this.onboardingCompleted = false,
+    this.localName = '',
   })  : entries = List.unmodifiable(entries ?? const []),
         categories = List.unmodifiable(categories ?? const []),
         accounts = List.unmodifiable(accounts ?? const []),
@@ -57,6 +61,8 @@ class AppState {
     bool? hideBalances,
     bool? remindersEnabled,
     String? pinHash,
+    bool? onboardingCompleted,
+    String? localName,
   }) =>
       AppState(
         entries: entries ?? this.entries,
@@ -73,5 +79,7 @@ class AppState {
         hideBalances: hideBalances ?? this.hideBalances,
         remindersEnabled: remindersEnabled ?? this.remindersEnabled,
         pinHash: pinHash ?? this.pinHash,
+        onboardingCompleted: onboardingCompleted ?? this.onboardingCompleted,
+        localName: localName ?? this.localName,
       );
 }

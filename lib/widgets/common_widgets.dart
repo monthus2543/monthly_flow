@@ -174,8 +174,8 @@ Future<DateTime?> _showMonthPicker(
   final locale = Localizations.localeOf(context).toLanguageTag();
   return showModalBottomSheet<DateTime>(
       context: context,
-      showDragHandle: true,
       isScrollControlled: true,
+      useSafeArea: true,
       builder: (sheetContext) => StatefulBuilder(
           builder: (context, setSheetState) => SafeArea(
                 child: SizedBox(

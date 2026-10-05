@@ -9,6 +9,7 @@ import 'package:pinput/pinput.dart';
 import '../l10n/app_localizations.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/account_card.dart';
 import 'category_manager_screen.dart';
 import 'planner_screen.dart';
 
@@ -29,6 +30,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         PageTitle(
             context.l10n.t('settings'), context.l10n.t('settings_subtitle')),
         const SizedBox(height: 16),
+        const AccountCard(),
+        const SizedBox(height: 13),
         Surface(
             child:
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -207,9 +210,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _importBackup(BuildContext context) async {
-    final picked = await FilePicker.platform
-        .pickFiles(type: FileType.custom, allowedExtensions: ['json']);
-    final path = picked?.files.single.path;
+    final picked = await FilePicker.pickFile(
+        type: FileType.custom, allowedExtensions: ['json']);
+    final path = picked?.path;
     if (path == null) return;
     try {
       await store.importBackupJson(await File(path).readAsString());

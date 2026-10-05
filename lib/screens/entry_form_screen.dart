@@ -233,6 +233,43 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(appStoreProvider);
+    final theme = Theme.of(context);
+    final scheme = theme.colorScheme;
+    final isBottomSheet = ModalRoute.of(context) is ModalBottomSheetRoute;
+    final surface = isBottomSheet
+        ? theme.bottomSheetTheme.modalBackgroundColor ?? scheme.surface
+        : scheme.surface;
+    final border = OutlineInputBorder(
+      borderRadius: BorderRadius.circular(16),
+      borderSide: BorderSide(color: scheme.outlineVariant),
+    );
+    return Theme(
+      data: theme.copyWith(
+        scaffoldBackgroundColor: isBottomSheet ? surface : Colors.transparent,
+        appBarTheme: theme.appBarTheme.copyWith(
+          backgroundColor: isBottomSheet ? surface : Colors.transparent,
+          foregroundColor: scheme.onSurface,
+          surfaceTintColor: Colors.transparent,
+          titleTextStyle: theme.appBarTheme.titleTextStyle?.copyWith(
+            color: scheme.onSurface,
+          ),
+        ),
+        inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+          fillColor: scheme.surfaceContainerLowest,
+          border: border,
+          enabledBorder: border,
+        ),
+      ),
+      child: Builder(builder: (formContext) => DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: isBottomSheet ? null : appBackgroundGradient(formContext),
+        ),
+        child: _buildForm(formContext),
+      )),
+    );
+  }
+
+  Widget _buildForm(BuildContext context) {
     final options = store.categories.where((c) => c.type == type).toList();
     final selected = options.any((c) => c.id == categoryId) ? categoryId : null;
     final heading = widget.existing != null
@@ -243,7 +280,8 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
           if (widget.existing != null)
             IconButton(
                 onPressed: _delete,
-                icon: const Icon(Icons.delete_outline, color: expenseRed)),
+                icon: Icon(Icons.delete_outline,
+                    color: Theme.of(context).colorScheme.error)),
         ]),
         body: SafeArea(
             child: Form(
@@ -251,7 +289,8 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
           padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
           children: [
             Text(context.l10n.t('form_hint'),
-                style: const TextStyle(color: muted)),
+                style: TextStyle(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
             const SizedBox(height: 16),
             AppSegmentedControl(
                 segments: transactionTypeSegments(context),

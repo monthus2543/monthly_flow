@@ -19,6 +19,10 @@ class StatisticsScreen extends ConsumerWidget {
     final incomeTotal = store.monthlyIncome;
     final expenseTotal = store.monthlyExpense;
     final balance = incomeTotal - expenseTotal;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final incomeColor =
+        theme.brightness == Brightness.dark ? AppColors.tealDark : brandGreen;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
       children: [
@@ -26,7 +30,6 @@ class StatisticsScreen extends ConsumerWidget {
             context.l10n.t('statistics'), context.l10n.t('stats_subtitle')),
         MonthButton(),
         Surface(
-          color: Colors.white,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -43,19 +46,18 @@ class StatisticsScreen extends ConsumerWidget {
                       sectionsSpace: 3,
                       startDegreeOffset: -90,
                       sections: _sections(
-                          incomeTotal, expenseTotal, balance, context),
+                          incomeTotal, expenseTotal, context),
                     ),
                     duration: const Duration(milliseconds: 500),
                     curve: Curves.easeOutCubic,
                   ),
                   Column(mainAxisSize: MainAxisSize.min, children: [
                     Text(context.l10n.t('balance'),
-                        style: const TextStyle(color: muted, fontSize: 12)),
+                        style: TextStyle(
+                            color: colors.onSurfaceVariant, fontSize: 12)),
                     Text(money(context, balance),
                         style: TextStyle(
-                            color: balance < 0
-                                ? expenseRed
-                                : Theme.of(context).colorScheme.primary,
+                            color: balance < 0 ? colors.error : colors.primary,
                             fontSize: 18,
                             fontWeight: FontWeight.w600)),
                   ]),
@@ -63,45 +65,64 @@ class StatisticsScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 14),
               _SummaryLegend(
-                  color: brandGreen,
+                  color: incomeColor,
                   label: context.l10n.t('income'),
                   amount: incomeTotal),
               const SizedBox(height: 9),
               _SummaryLegend(
-                  color: expenseRed,
+                  color: colors.error,
                   label: context.l10n.t('expense'),
                   amount: expenseTotal),
               const SizedBox(height: 9),
               _SummaryLegend(
-                  color: balance < 0
-                      ? Colors.orange
-                      : Theme.of(context).colorScheme.primary,
+                  color: balance < 0 ? colors.error : colors.primary,
                   label: context.l10n.t('balance'),
                   amount: balance),
             ],
           ),
         ),
         const SizedBox(height: 14),
-        Surface(
-          color: Colors.white,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(context.l10n.t('transaction_table'),
-                  style: const TextStyle(
-                      fontSize: 17, fontWeight: FontWeight.w600)),
-              const SizedBox(height: 14),
-              _TransactionTable(rows: rows, balance: balance),
-            ],
+        if (rows.isEmpty)
+          Surface(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 32),
+              child: Column(
+                children: [
+                  Icon(Icons.insert_chart_outlined_rounded,
+                      size: 44, color: colors.onSurfaceVariant),
+                  const SizedBox(height: 14),
+                  Text(context.l10n.t('no_data'),
+                      style: theme.textTheme.titleMedium
+                          ?.copyWith(color: colors.onSurface)),
+                  const SizedBox(height: 8),
+                  Text(context.l10n.t('no_entries'),
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium
+                          ?.copyWith(color: colors.onSurfaceVariant)),
+                ],
+              ),
+            ),
+          )
+        else
+          Surface(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(context.l10n.t('transaction_table'),
+                    style: const TextStyle(
+                        fontSize: 17, fontWeight: FontWeight.w600)),
+                const SizedBox(height: 14),
+                _TransactionTable(rows: rows, balance: balance),
+              ],
+            ),
           ),
-        ),
       ],
     );
   }
 
   List<PieChartSectionData> _sections(
-      int incomeTotal, int expenseTotal, int balance, BuildContext context) {
-    final values = [incomeTotal, expenseTotal, balance.abs()];
+      int incomeTotal, int expenseTotal, BuildContext context) {
+    final values = [incomeTotal, expenseTotal];
     final total = values.fold<int>(0, (sum, value) => sum + value);
     if (total == 0) {
       return [
@@ -113,9 +134,10 @@ class StatisticsScreen extends ConsumerWidget {
       ];
     }
     final colors = [
-      brandGreen,
-      expenseRed,
-      balance < 0 ? Colors.orange : Theme.of(context).colorScheme.primary
+      Theme.of(context).brightness == Brightness.dark
+          ? AppColors.tealDark
+          : brandGreen,
+      Theme.of(context).colorScheme.error,
     ];
     return [
       for (var index = 0; index < values.length; index++)
@@ -160,8 +182,9 @@ class _TransactionTable extends StatelessWidget {
   const _TransactionTable({required this.rows, required this.balance});
 
   @override
-  Widget build(BuildContext context) => Column(children: [
-        Table(
+  Widget build(BuildContext context) => ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: Table(
           columnWidths: const {
             0: FlexColumnWidth(1.7),
             1: FlexColumnWidth(1.15),
@@ -174,16 +197,19 @@ class _TransactionTable extends StatelessWidget {
           children: [
             TableRow(
                 decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .primaryContainer
-                        .withValues(alpha: .55)),
+                    color: Theme.of(context).colorScheme.primaryContainer),
                 children: [
-                  _cell(context.l10n.t('name'), header: true),
+                  _cell(context.l10n.t('name'),
+                      header: true,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer),
                   _cell(context.l10n.t('income'),
-                      header: true, align: TextAlign.right),
+                      header: true,
+                      align: TextAlign.right,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer),
                   _cell(context.l10n.t('expense'),
-                      header: true, align: TextAlign.right),
+                      header: true,
+                      align: TextAlign.right,
+                      color: Theme.of(context).colorScheme.onPrimaryContainer),
                 ]),
             for (final entry in rows)
               TableRow(children: [
@@ -193,38 +219,39 @@ class _TransactionTable extends StatelessWidget {
                         ? '+${_plainAmount(context, entry.amountMinor)}'
                         : '',
                     align: TextAlign.right,
-                    color: entry.type == income ? brandGreen : null,
+                    color: entry.type == income
+                        ? (Theme.of(context).brightness == Brightness.dark
+                            ? AppColors.tealDark
+                            : brandGreen)
+                        : null,
                     emphasized: entry.type == income),
                 _cell(
                     entry.type == expense
                         ? '−${_plainAmount(context, entry.amountMinor)}'
                         : '',
                     align: TextAlign.right,
-                    color: entry.type == expense ? expenseRed : null,
+                    color: entry.type == expense
+                        ? Theme.of(context).colorScheme.error
+                        : null,
                     emphasized: entry.type == expense),
               ]),
             TableRow(
                 decoration: BoxDecoration(
-                    color: Theme.of(context)
-                        .colorScheme
-                        .surfaceContainerHighest
-                        .withValues(alpha: .45)),
+                    color:
+                        Theme.of(context).colorScheme.surfaceContainerHighest),
                 children: [
                   _cell(context.l10n.t('balance'), header: true),
                   _cell(''),
                   _cell(_plainAmount(context, balance.abs()),
                       header: true,
                       align: TextAlign.right,
-                      color: AppColors.favorite),
+                      color: balance < 0
+                          ? Theme.of(context).colorScheme.error
+                          : Theme.of(context).colorScheme.primary),
                 ]),
           ],
         ),
-        if (rows.isEmpty)
-          Padding(
-              padding: const EdgeInsets.only(top: 14),
-              child: Text(context.l10n.t('no_entries'),
-                  style: const TextStyle(color: muted))),
-      ]);
+      );
 
   Widget _cell(String text,
           {bool header = false,

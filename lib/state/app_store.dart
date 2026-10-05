@@ -1,9 +1,12 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'app_state.dart';
+import 'package:flutter/widgets.dart' show StringCharacters;
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 
 import '../database/app_database.dart';
+import '../auth/auth_providers.dart';
+import '../sync/sync_local.dart';
 import '../models/finance_models.dart';
 import '../repositories/finance_repository.dart';
 
@@ -13,15 +16,36 @@ final appDatabaseProvider = Provider<AppDatabase>((ref) {
   return database;
 });
 
+final accountDatabaseProvider = Provider.family<AppDatabase, String>((ref, uid) {
+  final database = AppDatabase(accountId: uid);
+  ref.onDispose(database.close);
+  return database;
+});
+
+class FinanceChanges extends Notifier<int> {
+  @override
+  int build() => 0;
+  void changed() => state++;
+}
+final financeChangesProvider = NotifierProvider<FinanceChanges, int>(FinanceChanges.new);
+
 final appStoreProvider = NotifierProvider<AppStore, AppState>(AppStore.new);
 
 final appStartupProvider = FutureProvider<void>((ref) async {
-  await ref.read(appStoreProvider.notifier).open();
+  String? uid;
+  try { uid = (await ref.watch(authSessionProvider.future))?.id; } catch (_) {
+    // Missing account services must not prevent using the local profile.
+  }
+  if (!ref.mounted) return;
+  await ref.read(appStoreProvider.notifier).open(accountId: uid);
 }, retry: (retryCount, error) => null);
 
 class AppStore extends Notifier<AppState> {
   late AppDatabase database;
   FinanceRepository? _repository;
+  FinanceRepository? _deviceRepository;
+  String? activeAccountId;
+  int _openGeneration = 0;
 
   @override
   AppState build() {
@@ -44,9 +68,20 @@ class AppStore extends Notifier<AppState> {
   bool get remindersEnabled => state.remindersEnabled;
   String get pinHash => state.pinHash;
 
-  Future<void> open() async {
-    _repository = FinanceRepository(await database.open());
-    final values = await _repository!.settings();
+  Future<void> open({String? accountId}) async {
+    final generation = ++_openGeneration;
+    final guest = ref.read(appDatabaseProvider);
+    final guestDb = await guest.open();
+    final target = accountId == null ? guest : ref.read(accountDatabaseProvider(accountId));
+    final financeDb = accountId == null ? guestDb : await target.open();
+    if (accountId != null) await SyncLocal.importGuest(guestDb, financeDb, accountId);
+    if (!ref.mounted || generation != _openGeneration) return;
+    database = target;
+    activeAccountId = accountId;
+    _repository = FinanceRepository(financeDb);
+    _deviceRepository = FinanceRepository(guestDb);
+    final values = await _deviceRepository!.settings();
+    if (!ref.mounted || generation != _openGeneration) return;
     const themeColors = {'teal', 'blue', 'purple', 'orange', 'rose'};
     final parsed = DateTime.tryParse(values['selected_month'] ?? '');
     if (!ref.mounted) return;
@@ -59,15 +94,31 @@ class AppStore extends Notifier<AppState> {
       hideBalances: values['hide_balances'] == '1',
       remindersEnabled: values['reminders_enabled'] != '0',
       pinHash: values['pin_hash'] ?? '',
+      onboardingCompleted: values['onboarding_completed'] == '1',
+      localName: values['local_name'] ?? '',
       selectedMonth:
           parsed == null ? selectedMonth : DateTime(parsed.year, parsed.month),
     );
     await refresh();
-    if (!ref.mounted) return;
+    if (!ref.mounted || generation != _openGeneration) return;
     await _generateAutomaticRecurringThrough(DateTime.now());
   }
 
-  Future<void> refresh() async {
+  Future<void> completeOnboarding({String? localName}) async {
+    final name = localName?.trim() ?? '';
+    if (localName != null && (name.isEmpty || name.characters.length > 50)) {
+      throw ArgumentError('A local name must contain 1 to 50 characters');
+    }
+    await _deviceRepository!.completeOnboarding(name);
+    if (ref.mounted) {
+      state = state.copyWith(onboardingCompleted: true, localName: name);
+    }
+  }
+
+  Future<void> catchUpRecurring() => _generateAutomaticRecurringThrough(DateTime.now());
+
+  Future<void> refresh({bool notifySync = true}) async {
+    final generation = _openGeneration;
     final values = await Future.wait([
       _repository!.categories(),
       _repository!.entries(),
@@ -78,6 +129,7 @@ class AppStore extends Notifier<AppState> {
       _repository!.billReminders(),
     ]);
     if (!ref.mounted) return;
+    if (generation != _openGeneration) return;
     state = state.copyWith(
       categories: values[0] as List<Category>,
       entries: values[1] as List<Entry>,
@@ -87,6 +139,7 @@ class AppStore extends Notifier<AppState> {
       savingGoals: values[5] as List<SavingGoal>,
       billReminders: values[6] as List<BillReminder>,
     );
+    if (notifySync) ref.read(financeChangesProvider.notifier).changed();
   }
 
   List<Entry> get monthlyEntries =>
@@ -101,9 +154,11 @@ class AppStore extends Notifier<AppState> {
       .where((b) => b.categoryId == null)
       .fold(0, (sum, b) => sum + b.amountMinor);
   int spentForBudget(Budget budget) => monthlyEntries
-      .where((e) =>
-          e.type == expense &&
-          (budget.categoryId == null || e.categoryId == budget.categoryId))
+      .where(
+        (e) =>
+            e.type == expense &&
+            (budget.categoryId == null || e.categoryId == budget.categoryId),
+      )
       .fold(0, (sum, e) => sum + e.amountMinor);
   Account? accountFor(int id) {
     for (final value in accounts) {
@@ -115,9 +170,10 @@ class AppStore extends Notifier<AppState> {
   int accountBalance(Account account) =>
       account.openingBalanceMinor +
       entries.where((e) => e.accountId == account.id).fold(
-          0,
-          (sum, e) =>
-              sum + (e.type == income ? e.amountMinor : -e.amountMinor));
+            0,
+            (sum, e) =>
+                sum + (e.type == income ? e.amountMinor : -e.amountMinor),
+          );
   Category? categoryFor(int id) {
     for (final category in categories) {
       if (category.id == id) return category;
@@ -128,8 +184,9 @@ class AppStore extends Notifier<AppState> {
   Future<void> save(Entry entry) async {
     if (entry.amountMinor <= 0 ||
         entry.title.trim().isEmpty ||
-        !categories
-            .any((c) => c.id == entry.categoryId && c.type == entry.type)) {
+        !categories.any(
+          (c) => c.id == entry.categoryId && c.type == entry.type,
+        )) {
       throw ArgumentError('Invalid transaction');
     }
     await _repository!.save(entry);
@@ -137,9 +194,13 @@ class AppStore extends Notifier<AppState> {
   }
 
   Future<void> saveMonthlyEntries(
-      Entry template, DateTime startMonth, int numberOfMonths) async {
-    await _repository!
-        .saveAll(buildMonthlyEntries(template, startMonth, numberOfMonths));
+    Entry template,
+    DateTime startMonth,
+    int numberOfMonths,
+  ) async {
+    await _repository!.saveAll(
+      buildMonthlyEntries(template, startMonth, numberOfMonths),
+    );
     await refresh();
   }
 
@@ -150,13 +211,13 @@ class AppStore extends Notifier<AppState> {
 
   Future<void> changeMonth(DateTime date) async {
     final next = DateTime(date.year, date.month);
-    await _repository!.setting('selected_month', next.toIso8601String());
+    await _deviceRepository!.setting('selected_month', next.toIso8601String());
     if (ref.mounted) state = state.copyWith(selectedMonth: next);
   }
 
   Future<void> setDarkMode(bool value) async {
     final next = value;
-    await _repository!.setting('theme_mode', next ? 'dark' : 'light');
+    await _deviceRepository!.setting('theme_mode', next ? 'dark' : 'light');
     if (ref.mounted) state = state.copyWith(darkMode: next);
   }
 
@@ -164,25 +225,25 @@ class AppStore extends Notifier<AppState> {
     const supported = {'teal', 'blue', 'purple', 'orange', 'rose'};
     if (!supported.contains(value)) return;
     final next = value;
-    await _repository!.setting('theme_color', next);
+    await _deviceRepository!.setting('theme_color', next);
     if (ref.mounted) state = state.copyWith(themeColor: next);
   }
 
   Future<void> setLanguage(String code) async {
     final next = code == 'en' ? 'en' : 'th';
-    await _repository!.setting('language_code', next);
+    await _deviceRepository!.setting('language_code', next);
     if (ref.mounted) state = state.copyWith(languageCode: next);
   }
 
   Future<void> setHideBalances(bool value) async {
     final next = value;
-    await _repository!.setting('hide_balances', next ? '1' : '0');
+    await _deviceRepository!.setting('hide_balances', next ? '1' : '0');
     if (ref.mounted) state = state.copyWith(hideBalances: next);
   }
 
   Future<void> setRemindersEnabled(bool value) async {
     final next = value;
-    await _repository!.setting('reminders_enabled', next ? '1' : '0');
+    await _deviceRepository!.setting('reminders_enabled', next ? '1' : '0');
     if (ref.mounted) state = state.copyWith(remindersEnabled: next);
   }
 
@@ -193,7 +254,7 @@ class AppStore extends Notifier<AppState> {
   Future<void> setPin(String value) async {
     final next =
         value.isEmpty ? '' : sha256.convert(utf8.encode(value)).toString();
-    await _repository!.setting('pin_hash', next);
+    await _deviceRepository!.setting('pin_hash', next);
     if (ref.mounted) state = state.copyWith(pinHash: next);
   }
 
@@ -218,18 +279,22 @@ class AppStore extends Notifier<AppState> {
   }
 
   Future<void> saveIndefiniteMonthlyEntry(
-      Entry template, DateTime startMonth) async {
+    Entry template,
+    DateTime startMonth,
+  ) async {
     final key = _monthKey(startMonth);
-    await _repository!.saveRecurringRule(RecurringRule(
-      title: template.title,
-      amountMinor: template.amountMinor,
-      type: template.type,
-      categoryId: template.categoryId,
-      accountId: template.accountId,
-      dayOfMonth: template.date.day,
-      note: template.note,
-      startMonth: key,
-    ));
+    await _repository!.saveRecurringRule(
+      RecurringRule(
+        title: template.title,
+        amountMinor: template.amountMinor,
+        type: template.type,
+        categoryId: template.categoryId,
+        accountId: template.accountId,
+        dayOfMonth: template.date.day,
+        note: template.note,
+        startMonth: key,
+      ),
+    );
     await refresh();
     await _generateAutomaticRecurringThrough(DateTime.now());
   }
@@ -255,26 +320,35 @@ class AppStore extends Notifier<AppState> {
   }
 
   Future<void> generateRecurringForMonth(DateTime month) async {
+    final repository = _repository!;
+    final generation = _openGeneration;
     final key = _monthKey(month);
-    for (final rule in recurringRules.where((r) =>
-        r.isActive &&
-        r.lastGeneratedMonth != key &&
-        (r.startMonth.isEmpty || key.compareTo(r.startMonth) >= 0) &&
-        (r.lastGeneratedMonth.isEmpty ||
-            key.compareTo(r.lastGeneratedMonth) > 0))) {
+    for (final rule in recurringRules.where(
+      (r) =>
+          r.isActive &&
+          r.lastGeneratedMonth != key &&
+          (r.startMonth.isEmpty || key.compareTo(r.startMonth) >= 0) &&
+          (r.lastGeneratedMonth.isEmpty ||
+              key.compareTo(r.lastGeneratedMonth) > 0),
+    )) {
       final lastDay = DateTime(month.year, month.month + 1, 0).day;
       final now = DateTime.now().microsecondsSinceEpoch;
       final entry = Entry(
-          title: rule.title,
-          amountMinor: rule.amountMinor,
-          type: rule.type,
-          categoryId: rule.categoryId,
-          accountId: rule.accountId,
-          date: DateTime(
-              month.year, month.month, rule.dayOfMonth.clamp(1, lastDay)),
-          note: rule.note,
-          createdAt: now);
-      await _repository!.recordRecurringOccurrence(rule, entry, key);
+        title: rule.title,
+        amountMinor: rule.amountMinor,
+        type: rule.type,
+        categoryId: rule.categoryId,
+        accountId: rule.accountId,
+        date: DateTime(
+          month.year,
+          month.month,
+          rule.dayOfMonth.clamp(1, lastDay),
+        ),
+        note: rule.note,
+        createdAt: now,
+      );
+      await repository.recordRecurringOccurrence(rule, entry, key);
+        if (!ref.mounted || generation != _openGeneration) return;
     }
     await refresh();
   }
@@ -288,9 +362,12 @@ class AppStore extends Notifier<AppState> {
   }
 
   Future<void> _generateAutomaticRecurringThrough(DateTime target) async {
+    final repository = _repository!;
+    final generation = _openGeneration;
     var generated = false;
-    for (final initialRule in recurringRules
-        .where((rule) => rule.isActive && rule.startMonth.isNotEmpty)) {
+    for (final initialRule in recurringRules.where(
+      (rule) => rule.isActive && rule.startMonth.isNotEmpty,
+    )) {
       var rule = initialRule;
       final start = _parseMonth(rule.startMonth);
       if (start == null) continue;
@@ -308,11 +385,15 @@ class AppStore extends Notifier<AppState> {
           categoryId: rule.categoryId,
           accountId: rule.accountId,
           date: DateTime(
-              month.year, month.month, rule.dayOfMonth.clamp(1, lastDay)),
+            month.year,
+            month.month,
+            rule.dayOfMonth.clamp(1, lastDay),
+          ),
           note: rule.note,
           createdAt: now,
         );
-        await _repository!.recordRecurringOccurrence(rule, entry, key);
+        await repository.recordRecurringOccurrence(rule, entry, key);
+        if (!ref.mounted || generation != _openGeneration) return;
         rule = RecurringRule(
           id: rule.id,
           title: rule.title,
@@ -333,18 +414,22 @@ class AppStore extends Notifier<AppState> {
     if (generated) await refresh();
   }
 
-  Future<void> transfer(
-      {required int fromAccountId,
-      required int toAccountId,
-      required int amountMinor,
-      required DateTime date,
-      String note = ''}) async {
+  Future<void> transfer({
+    required int fromAccountId,
+    required int toAccountId,
+    required int amountMinor,
+    required DateTime date,
+    String note = '',
+  }) async {
+    final repository = _repository!;
+    final generation = _openGeneration;
     if (fromAccountId == toAccountId || amountMinor <= 0)
       throw ArgumentError('Invalid transfer');
     final expenseCategory = categories.firstWhere((c) => c.type == expense);
     final incomeCategory = categories.firstWhere((c) => c.type == income);
     final now = DateTime.now().microsecondsSinceEpoch;
-    await _repository!.save(Entry(
+    await repository.save(
+      Entry(
         title: 'Transfer out',
         amountMinor: amountMinor,
         type: expense,
@@ -352,8 +437,11 @@ class AppStore extends Notifier<AppState> {
         accountId: fromAccountId,
         date: date,
         note: note,
-        createdAt: now));
-    await _repository!.save(Entry(
+        createdAt: now,
+      ),
+    );
+    await repository.save(
+      Entry(
         title: 'Transfer in',
         amountMinor: amountMinor,
         type: income,
@@ -361,8 +449,10 @@ class AppStore extends Notifier<AppState> {
         accountId: toAccountId,
         date: date,
         note: note,
-        createdAt: now + 1));
-    await refresh();
+        createdAt: now + 1,
+      ),
+    );
+    if (generation == _openGeneration) await refresh();
   }
 
   Future<void> clearEntries() async {
@@ -381,12 +471,14 @@ class AppStore extends Notifier<AppState> {
           categoryFor(entry.categoryId)?.name ?? '',
           entry.title,
           (entry.amountMinor / 100).toStringAsFixed(2),
-          entry.note
+          entry.note,
         ].map(quote).join(','),
     ].join('\r\n');
   }
 
   Future<String> exportBackupJson() async {
+    final repository = _repository!;
+
     const tables = [
       'transactions',
       'categories',
@@ -395,15 +487,15 @@ class AppStore extends Notifier<AppState> {
       'recurring_rules',
       'saving_goals',
       'bill_reminders',
-      'settings'
+      'settings',
     ];
     final payload = <String, Object?>{
       'format': 'monthly-flow-backup',
       'version': 1,
-      'created_at': DateTime.now().toIso8601String()
+      'created_at': DateTime.now().toIso8601String(),
     };
     for (final table in tables) {
-      payload[table] = await _repository!.table(table);
+      payload[table] = await (table == 'settings' ? _deviceRepository! : repository).table(table);
     }
     return const JsonEncoder.withIndent('  ').convert(payload);
   }
@@ -421,7 +513,7 @@ class AppStore extends Notifier<AppState> {
       'recurring_rules',
       'saving_goals',
       'bill_reminders',
-      'settings'
+      'settings',
     ];
     final backup = <String, List<Map<String, Object?>>>{};
     for (final table in tables) {
@@ -430,6 +522,11 @@ class AppStore extends Notifier<AppState> {
           .toList();
     }
     await _repository!.replaceBackup(backup);
-    await open();
+    if (activeAccountId != null) {
+      for (final setting in backup['settings'] ?? <Map<String, Object?>>[]) {
+        await _deviceRepository!.setting(setting['key'] as String, setting['value'] as String);
+      }
+    }
+    await open(accountId: activeAccountId);
   }
 }

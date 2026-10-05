@@ -27,7 +27,7 @@ class _HomeShellState extends State<HomeShell> {
     ];
     return Scaffold(
       resizeToAvoidBottomInset: false,
-      backgroundColor: Colors.white,
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       body: DecoratedBox(
         decoration: BoxDecoration(gradient: appBackgroundGradient(context)),
         child: SafeArea(child: IndexedStack(index: index, children: pages)),
@@ -99,52 +99,23 @@ class _HomeShellState extends State<HomeShell> {
       isScrollControlled: true,
       useSafeArea: true,
       enableDrag: true,
-      backgroundColor: Colors.transparent,
-      barrierColor: Colors.black.withValues(alpha: .42),
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * .94,
+      ),
       builder: (sheetContext) {
         final theme = Theme.of(sheetContext);
         final scheme = theme.colorScheme;
         final backgroundColor =
             theme.bottomSheetTheme.modalBackgroundColor ?? scheme.surface;
-        return FractionallySizedBox(
-          heightFactor: .94,
-          child: Material(
-            color: backgroundColor,
-            clipBehavior: Clip.antiAlias,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                color: backgroundColor,
-              ),
-              child: Column(
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.only(top: 10, bottom: 2),
-                    child: Container(
-                      width: 42,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: scheme.onSurfaceVariant.withValues(alpha: .35),
-                        borderRadius: BorderRadius.circular(99),
-                      ),
-                    ),
-                  ),
-                  Expanded(
-                    child: Theme(
-                      data: theme.copyWith(
-                        scaffoldBackgroundColor: Colors.transparent,
-                        appBarTheme: theme.appBarTheme.copyWith(
-                          backgroundColor: Colors.transparent,
-                          surfaceTintColor: Colors.transparent,
-                        ),
-                      ),
-                      child: EntryFormScreen(),
-                    ),
-                  ),
-                ],
-              ),
+        return Theme(
+          data: theme.copyWith(
+            scaffoldBackgroundColor: backgroundColor,
+            appBarTheme: theme.appBarTheme.copyWith(
+              backgroundColor: backgroundColor,
+              surfaceTintColor: theme.bottomSheetTheme.surfaceTintColor,
             ),
           ),
+          child: const EntryFormScreen(),
         );
       },
     );

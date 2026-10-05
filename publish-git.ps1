@@ -26,7 +26,7 @@ try {
     if (-not $changes) { throw 'There are no changes to publish.' }
 
     $pubspec = [System.IO.File]::ReadAllText((Join-Path $projectRoot 'pubspec.yaml'))
-    $versionMatch = [regex]::Match($pubspec, '(?m)^version:[ \t]*(\d+\.\d+\.\d+)\+\d+[ \t]*$')
+    $versionMatch = [regex]::Match($pubspec, '(?m)^version:[ \t]*(\d+\.\d+\.\d+)\+\d+[ \t]*\r?$')
     if (-not $versionMatch.Success) {
         throw 'Expected pubspec.yaml version format: major.minor.patch+build.'
     }

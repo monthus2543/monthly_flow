@@ -1,7 +1,11 @@
 plugins {
     id 'com.android.application'
-    id 'org.jetbrains.kotlin.android'
     id 'dev.flutter.flutter-gradle-plugin'
+}
+
+// Activate Firebase resources after the project's real configuration is added.
+if (file('google-services.json').exists()) {
+    apply plugin: 'com.google.gms.google-services'
 }
 
 android {
@@ -14,13 +18,9 @@ android {
         targetCompatibility JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = '17'
-    }
-
     defaultConfig {
         applicationId 'com.example.monthly_flow'
-        minSdk flutter.minSdkVersion
+        minSdk Math.max(23, flutter.minSdkVersion)
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode
         versionName flutter.versionName
@@ -30,6 +30,12 @@ android {
         release {
             signingConfig signingConfigs.debug
         }
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
     }
 }
 
