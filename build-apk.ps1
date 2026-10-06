@@ -3,7 +3,10 @@ param(
     [string]$Mode = 'release',
 
     [ValidateSet('major', 'feature', 'hotfix')]
-    [string]$VersionType = 'hotfix'
+    [string]$VersionType = 'hotfix',
+
+    [ValidateRange(1, 100)]
+    [int]$VersionIncrement = 1
 )
 
 $ErrorActionPreference = 'Stop'
@@ -30,7 +33,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Unable to run the selected Flutter SDK.' }
 
     $originalPubspec = [System.IO.File]::ReadAllText($pubspecPath)
-    $versionMatch = [regex]::Match($originalPubspec, '(?m)^version:[ \t]*(\d+)\.(\d+)\.(\d+)\+(\d+)[ \t]*$')
+    $versionMatch = [regex]::Match($originalPubspec, '(?m)^version:[ \t]*(\d+)\.(\d+)\.(\d+)\+(\d+)[ \t]*\r?$')
     if (-not $versionMatch.Success) {
         throw 'Expected pubspec.yaml version format: major.minor.patch+build (for example 1.0.0+1).'
     }
@@ -42,24 +45,25 @@ try {
 
     switch ($VersionType) {
         'major' {
-            $major++
+            $major += $VersionIncrement
             $minor = 0
             $patch = 0
         }
         'feature' {
-            $minor++
+            $minor += $VersionIncrement
             $patch = 0
         }
         'hotfix' {
-            $patch++
+            $patch += $VersionIncrement
         }
     }
 
     $appVersion = "$major.$minor.$patch"
     $fullVersion = "$appVersion+$buildNumber"
+    $lineEnding = if ($versionMatch.Value.EndsWith("`r")) { "`r" } else { '' }
     $updatedPubspec = $originalPubspec.Remove($versionMatch.Index, $versionMatch.Length).Insert(
         $versionMatch.Index,
-        "version: $fullVersion"
+        "version: $fullVersion$lineEnding"
     )
     [System.IO.File]::WriteAllText($pubspecPath, $updatedPubspec)
     $versionUpdated = $true

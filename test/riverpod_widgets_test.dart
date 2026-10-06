@@ -118,7 +118,7 @@ void main() {
         .read(appStoreProvider.notifier)
         .saveCategory(const Category(1, 'New category', expense, 'other'));
     await tester.pumpAndSettle();
-    expect(find.text('category_New category'), findsOneWidget);
+    expect(find.text('New category'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

@@ -1,0 +1,13 @@
+{
+  "name": "monthly-flow-functions",
+  "private": true,
+  "main": "index.js",
+  "engines": {"node": "22"},
+  "scripts": {"test": "node --test"},
+  "overrides": {"gaxios": {"uuid": "^11.1.1"}},
+  "dependencies": {
+    "firebase-admin": "^14.5.0",
+    "firebase-functions": "^7.4.0",
+    "nodemailer": "^10.0.15"
+  }
+}

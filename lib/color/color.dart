@@ -2,6 +2,14 @@ import 'package:flutter/material.dart';
 
 /// Shared palette. Screens should use Theme.of(context).colorScheme for themed colors.
 abstract final class AppColors {
+  static const walletLight = [Color(0xFFACF5D1), Color(0xFF9BE2F2), Color(0xFFC8DBFF)];
+  static const walletDark = [Color(0xFF0F756D), Color(0xFF175C82), Color(0xFF334A87)];
+  static const walletPocketDark = Color(0xFF123452);
+  static const walletStitch = Color(0xFF39778A);
+  static const walletStitchDark = Color(0xFFAEEDDA);
+  static const walletStrap = [Color(0xFFFFD2A8), Color(0xFFFFB09A)];
+  static const walletSnap = [Color(0xFFFFF6C9), Color(0xFFF5DA87)];
+  static const walletSnapBorder = Color(0xFFA67C3B);
   static const teal = Color(0xFF008E7B);
   static const tealDark = Color(0xFF62E6CA);
   static const blue = Color(0xFF2563EB);
@@ -17,6 +25,8 @@ abstract final class AppColors {
   static const accentBlueDark = Color(0xFF8EABFF);
   static const accentBlue = Color(0xFF4D7CFE);
   static const errorDark = Color(0xFFFF8B80);
+  static const categoryExpense = Color(0xFFD32F2F);
+  static const categoryIncome = Color(0xFF007F65);
   static const error = Color(0xFFFF5F52);
   static const surfaceDark = Color(0xFF121212);
   static const surface = Color(0xFFFFFBF7);

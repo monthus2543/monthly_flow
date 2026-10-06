@@ -29,6 +29,7 @@ String authErrorKey(Object error) => switch (error) {
 
 abstract interface class AuthRepository {
   Stream<AuthAccount?> watchAccount();
-  Future<void> signInWithGoogle();
+  Future<void> signInWithGoogle({String? defaultName});
   Future<void> signOut();
+  Future<void> updateProfile({required String name, String? photoUrl});
 }

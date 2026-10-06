@@ -37,10 +37,11 @@ class AppSwitchTile extends StatelessWidget {
             foregroundIndicatorIconBuilder: (context, global) => Icon(
               Icons.menu_rounded,
               size: 16,
-              color: (value
-                      ? theme.colorScheme.primary
-                      : theme.colorScheme.onSurfaceVariant)
-                  .withValues(alpha: .20),
+              color:
+                  (value
+                          ? theme.colorScheme.primary
+                          : theme.colorScheme.onSurfaceVariant)
+                      .withValues(alpha: .20),
             ),
             loading: false,
             animationDuration: MediaQuery.disableAnimationsOf(context)

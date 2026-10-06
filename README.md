@@ -115,6 +115,14 @@ build/app/outputs/flutter-apk/app-release.apk
 
 Build Number หลังเครื่องหมาย `+` จะเพิ่มขึ้น 1 ทุกครั้ง เช่น `1.0.0+1 → 1.0.1+2` หาก build ไม่สำเร็จ สคริปต์จะคืนค่าเวอร์ชันเดิมให้อัตโนมัติ
 
+เพิ่มเวอร์ชันมากกว่า 1 ระดับใน Build เดียวได้ด้วย `VersionIncrement` เช่น feature +2:
+
+```powershell
+.\build-apk.ps1 -Mode release -VersionType feature -VersionIncrement 2
+```
+
+ตัวอย่าง `1.4.0+5 → 1.6.0+6` โดย Build Number เพิ่มเพียง 1 ครั้ง
+
 ### Git Branch ตามประเภทเวอร์ชัน
 
 ทุกงานใช้ branch ใหม่จาก `main` โดยตั้งชื่อตามประเภทและเวอร์ชัน:

@@ -1,6 +1,6 @@
 # แผนส่งออก Excel ไป Google Drive
 
-สถานะ: วางแผน ยังไม่ได้พัฒนา — ต้องมี Google Login และตัวสร้างรายงาน Excel ก่อน
+สถานะ: พักแผน Google Drive — ตามคำขอล่าสุด ปลายทางปัจจุบันเป็นบันทึกในอุปกรณ์หรือส่งอีเมลของบัญชี Login ดู [ขั้นตอนตั้งค่าอีเมล](EMAIL_EXPORT_SETUP.md) โค้ดบริการ Drive เดิมยังคงไว้แต่ไม่มีตัวเลือกในหน้าส่งออก
 
 แบบอ้างอิง: [Monthly Flow / 05 · Guide / Development plan / Excel](https://design.penpot.app/#/workspace?team-id=45145cff-4092-8110-8008-ac2045ef414d&file-id=19c47d73-0a5d-8067-8008-bab751d38f00&page-id=14936641-d32a-801f-8008-babe60a5ca43&layout=layers)
 

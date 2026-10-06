@@ -1,17 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'dart:io';
-import 'package:file_picker/file_picker.dart';
-import 'package:path_provider/path_provider.dart';
-import 'package:share_plus/share_plus.dart';
 import 'package:pinput/pinput.dart';
 import '../l10n/app_localizations.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/account_card.dart';
+import '../widgets/sync_status_card.dart';
+import '../auth/auth_providers.dart';
+import 'account_screen.dart';
 import 'category_manager_screen.dart';
 import 'planner_screen.dart';
+import 'export_screen.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -24,6 +23,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     ref.watch(appStoreProvider);
+    final signedIn = ref.watch(authSessionProvider).asData?.value != null;
     return ListView(
       padding: const EdgeInsets.fromLTRB(24, 30, 24, 110),
       children: [
@@ -112,7 +112,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   MaterialPageRoute<void>(builder: (_) => PlannerScreen()))),
           ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.t('category')),
+              title: Text(context.l10n.t('manage_categories')),
               trailing: const Icon(Icons.chevron_right),
               onTap: () => Navigator.push(
                   context,
@@ -120,23 +120,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       builder: (_) => CategoryManagerScreen()))),
           ListTile(
               contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.t('copy_csv')),
-              trailing: const Icon(Icons.copy_outlined),
-              onTap: () async {
-                await Clipboard.setData(ClipboardData(text: store.exportCsv()));
-                if (context.mounted)
-                  showAppAlert(context, context.l10n.t('csv_copied'));
-              }),
-          ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.t('export_backup')),
-              trailing: const Icon(Icons.ios_share_outlined),
-              onTap: () => _exportBackup(context)),
-          ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.t('import_backup')),
-              trailing: const Icon(Icons.file_open_outlined),
-              onTap: () => _importBackup(context)),
+              title: Text(context.l10n.t('export_excel')),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => Navigator.push(context, MaterialPageRoute<void>(
+                  builder: (_) => const ExportScreen()))),
         ])),
         const SizedBox(height: 13),
         Surface(
@@ -150,30 +137,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           const SizedBox(height: 5),
           Text(context.l10n.t('offline'),
               style: const TextStyle(color: muted, fontSize: 12)),
-          ListTile(
-              contentPadding: EdgeInsets.zero,
-              title: Text(context.l10n.t('clear_all'),
-                  style: const TextStyle(color: expenseRed)),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => _clear(context)),
+          if (signedIn) ...[
+            const SyncStatusCard(),
+            const SizedBox(height: 12),
+            const Divider(),
+          ],
+          const SizedBox(height: 8),
+          SizedBox(width: double.infinity, child: OutlinedButton(
+              style: OutlinedButton.styleFrom(
+                foregroundColor: Theme.of(context).colorScheme.onErrorContainer,
+                side: BorderSide(color: Theme.of(context).colorScheme.error.withValues(alpha: .5)),
+              ),
+              onPressed: () => _clear(context),
+              child: Text(context.l10n.t('clear_all')))),
         ])),
+        if (signedIn) ...[
+          const SizedBox(height: 16),
+          // Match the Surface's 18 px padding plus its 1 px border.
+          const Padding(padding: EdgeInsets.symmetric(horizontal: 19),
+              child: AccountSignOutButton()),
+        ],
       ],
     );
   }
 
-  Future<void> _exportBackup(BuildContext context) async {
-    try {
-      final directory = await getTemporaryDirectory();
-      final file = File(
-          '${directory.path}${Platform.pathSeparator}monthly-flow-backup.json');
-      await file.writeAsString(await store.exportBackupJson());
-      await SharePlus.instance.share(
-          ShareParams(files: [XFile(file.path)], title: 'Monthly Flow backup'));
-    } catch (_) {
-      if (context.mounted)
-        showAppAlert(context, context.l10n.t('backup_failed'), isError: true);
-    }
-  }
 
   DropdownMenuItem<String> _themeItem(
           BuildContext context, String value, Color color) =>
@@ -209,20 +196,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (result != null) await store.setPin(result);
   }
 
-  Future<void> _importBackup(BuildContext context) async {
-    final picked = await FilePicker.pickFile(
-        type: FileType.custom, allowedExtensions: ['json']);
-    final path = picked?.path;
-    if (path == null) return;
-    try {
-      await store.importBackupJson(await File(path).readAsString());
-      if (context.mounted)
-        showAppAlert(context, context.l10n.t('backup_imported'));
-    } catch (_) {
-      if (context.mounted)
-        showAppAlert(context, context.l10n.t('backup_failed'), isError: true);
-    }
-  }
 
   Future<void> _clear(BuildContext context) async {
     final confirmed = await showDialog<bool>(

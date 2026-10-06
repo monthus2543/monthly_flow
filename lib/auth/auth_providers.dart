@@ -19,9 +19,11 @@ class AuthActions extends Notifier<AsyncValue<void>> {
   @override
   AsyncValue<void> build() => const AsyncData(null);
 
-  Future<bool> signIn() =>
-      _perform((repository) => repository.signInWithGoogle());
+  Future<bool> signIn({String? defaultName}) =>
+      _perform((repository) => repository.signInWithGoogle(defaultName: defaultName));
   Future<bool> signOut() => _perform((repository) => repository.signOut());
+  Future<bool> updateProfile({required String name, String? photoUrl}) =>
+      _perform((repository) => repository.updateProfile(name: name, photoUrl: photoUrl));
 
   Future<bool> _perform(Future<void> Function(AuthRepository) action) async {
     if (state.isLoading) return false;

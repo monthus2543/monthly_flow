@@ -19,6 +19,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
   final _formKey = GlobalKey<FormState>();
   final _name = TextEditingController();
   bool _saving = false;
+  bool _startingWithGoogle = false;
   String? _errorKey;
 
   @override
@@ -34,6 +35,7 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
     FocusScope.of(context).unfocus();
     setState(() {
       _saving = true;
+      _startingWithGoogle = google;
       _errorKey = null;
     });
     try {
@@ -105,29 +107,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           ),
                         ),
                         const SizedBox(height: 32),
-                        OutlinedButton(
-                          style: OutlinedButton.styleFrom(
-                            minimumSize: const Size.fromHeight(52),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 14,
-                            ),
-                          ),
-                          onPressed: busy ? null : () => _start(google: true),
-                          child: Text(
-                            context.l10n.t('welcome_google'),
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
-                        if (busy) ...[
-                          const SizedBox(height: 16),
-                          const Center(
-                            child: SizedBox.square(
-                              dimension: 24,
-                              child: CircularProgressIndicator(strokeWidth: 2),
-                            ),
-                          ),
-                        ],
                         if (errorKey != null) ...[
                           const SizedBox(height: 16),
                           Container(
@@ -144,15 +123,6 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             ),
                           ),
                         ],
-                        const SizedBox(height: 20),
-                        Text(
-                          context.l10n.t('welcome_or_name'),
-                          textAlign: TextAlign.center,
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 20),
                         TextFormField(
                           controller: _name,
                           enabled: !busy,
@@ -181,7 +151,14 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                             ),
                           ),
                           onPressed: busy ? null : () => _start(google: false),
-                          child: Text(context.l10n.t('welcome_start')),
+                          child: _saving && !_startingWithGoogle
+                              ? const SizedBox.square(
+                                  dimension: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(context.l10n.t('welcome_start')),
                         ),
                         const SizedBox(height: 16),
                         Text(
@@ -190,6 +167,38 @@ class _OnboardingScreenState extends ConsumerState<OnboardingScreen> {
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurfaceVariant,
                           ),
+                        ),
+                        const SizedBox(height: 24),
+                        Text(
+                          context.l10n.t('welcome_or_google'),
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onSurfaceVariant,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            minimumSize: const Size.fromHeight(52),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 14,
+                            ),
+                          ),
+                          onPressed: busy ? null : () => _start(google: true),
+                          child:
+                              (_saving && _startingWithGoogle) ||
+                                  action.isLoading
+                              ? const SizedBox.square(
+                                  dimension: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                  ),
+                                )
+                              : Text(
+                                  context.l10n.t('welcome_google'),
+                                  textAlign: TextAlign.center,
+                                ),
                         ),
                       ],
                     ),

@@ -5,6 +5,7 @@ import '../l10n/app_localizations.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/monthly_bars.dart';
+import '../widgets/wallet_balance_card.dart';
 import 'planner_screen.dart';
 import 'daily_trend_screen.dart';
 
@@ -27,34 +28,10 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
           PageTitle(
               context.l10n.t('dashboard'), context.l10n.t('overview_subtitle')),
           MonthButton(),
-          Surface(
-                  gradient: brandGradient(context),
-                  child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(context.l10n.t('balance'),
-                            style: TextStyle(
-                                color: Colors.white.withValues(alpha: .82))),
-                        const SizedBox(height: 4),
-                        Text(
-                            store.hideBalances
-                                ? '••••••'
-                                : money(context,
-                                    store.monthlyIncome - store.monthlyExpense),
-                            style: const TextStyle(
-                                fontSize: 31,
-                                fontWeight: FontWeight.w700,
-                                color: Colors.white)),
-                        const SizedBox(height: 16),
-                        Row(children: [
-                          Expanded(
-                              child: _metric(context, context.l10n.t('income'),
-                                  store.monthlyIncome)),
-                          Expanded(
-                              child: _metric(context, context.l10n.t('expense'),
-                                  store.monthlyExpense)),
-                        ]),
-                      ]))
+          WalletBalanceCard(
+              incomeMinor: store.monthlyIncome,
+              expenseMinor: store.monthlyExpense,
+              hideBalances: store.hideBalances)
               .animate()
               .fadeIn(duration: 420.ms)
               .slideY(begin: .08, end: 0, curve: Curves.easeOutCubic),
@@ -140,14 +117,4 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
         ]);
   }
 
-  Widget _metric(BuildContext context, String label, int amount) =>
-      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Text(label,
-            style: TextStyle(color: Colors.white.withValues(alpha: .82))),
-        Text(store.hideBalances ? '••••••' : money(context, amount),
-            style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-                fontSize: 17)),
-      ]);
 }

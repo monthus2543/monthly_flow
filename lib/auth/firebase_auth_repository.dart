@@ -12,6 +12,9 @@ class FirebaseAuthRepository implements AuthRepository {
   FirebaseAuthRepository._(this._auth);
   static Future<void>? _googleInitialization;
 
+  static Future<void> initializeGoogle() =>
+      _googleInitialization ??= GoogleSignIn.instance.initialize();
+
   static Future<AuthRepository> connect() async {
     if (kIsWeb ||
         (defaultTargetPlatform != TargetPlatform.android &&
@@ -31,25 +34,57 @@ class FirebaseAuthRepository implements AuthRepository {
 
   @override
   Stream<AuthAccount?> watchAccount() =>
-      _auth.authStateChanges().map((user) => user == null
+      _auth.userChanges().map((user) => user == null
           ? null
           : AuthAccount(
               id: user.uid, name: user.displayName, email: user.email,
               photoUrl: user.photoURL));
 
   @override
-  Future<void> signInWithGoogle() async {
+  Future<void> updateProfile({required String name, String? photoUrl}) async {
+    final user = _auth.currentUser;
+    if (user == null) throw const AuthFailure(AuthFailureReason.unavailable);
+    final trimmedName = name.trim();
+    final trimmedPhoto = photoUrl?.trim();
+    final uri = Uri.tryParse(trimmedPhoto ?? '');
+    if (trimmedName.isEmpty || trimmedName.length > 80 ||
+        (trimmedPhoto != null && trimmedPhoto.isNotEmpty &&
+            (uri == null || uri.scheme != 'https' || uri.host.isEmpty))) {
+      throw const AuthFailure(AuthFailureReason.failed);
+    }
+    try {
+      await user.updateProfile(displayName: trimmedName,
+          photoURL: trimmedPhoto == null || trimmedPhoto.isEmpty ? null : trimmedPhoto);
+    } on FirebaseAuthException catch (error) {
+      throw AuthFailure(error.code == 'network-request-failed'
+          ? AuthFailureReason.network : AuthFailureReason.failed);
+    } on PlatformException {
+      throw const AuthFailure(AuthFailureReason.failed);
+    }
+  }
+
+  @override
+  Future<void> signInWithGoogle({String? defaultName}) async {
     try {
       final google = GoogleSignIn.instance;
-      await (_googleInitialization ??= google.initialize());
+      await initializeGoogle();
       final account = await google.authenticate();
       final idToken = account.authentication.idToken;
       if (idToken == null || idToken.isEmpty) {
         throw const AuthFailure(AuthFailureReason.failed);
       }
       // Firebase verifies the Google ID token; profile information alone is not authentication.
-      await _auth.signInWithCredential(
+      final credential = await _auth.signInWithCredential(
           GoogleAuthProvider.credential(idToken: idToken));
+      if (defaultName != null && defaultName.trim().isNotEmpty) {
+        try {
+          await credential.user!.updateDisplayName(defaultName.trim());
+        } catch (_) {
+          // Keep the local profile available for retry if linking fails.
+          await _auth.signOut();
+          rethrow;
+        }
+      }
     } on GoogleSignInException catch (error) {
       if (kDebugMode) {
         debugPrint('Google sign-in failed: ${error.code.name}');
@@ -86,7 +121,7 @@ class FirebaseAuthRepository implements AuthRepository {
     await _auth.signOut();
     try {
       final google = GoogleSignIn.instance;
-      await (_googleInitialization ??= google.initialize());
+      await initializeGoogle();
       await google.signOut();
     } on GoogleSignInException {
       // The Firebase session has already ended; provider cleanup is best effort.

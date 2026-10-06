@@ -7,6 +7,7 @@ import '../l10n/app_localizations.dart';
 import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
+import '../widgets/app_primary_button.dart';
 
 class EntryFormScreen extends ConsumerStatefulWidget {
   final Entry? existing;
@@ -408,11 +409,8 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                 decoration: InputDecoration(labelText: context.l10n.t('note'))),
             const SizedBox(height: 14),
             Builder(
-                builder: (formContext) => FilledButton(
+                builder: (formContext) => AppPrimaryButton(
                     onPressed: saving ? null : () => _save(formContext),
-                    style: FilledButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        minimumSize: const Size.fromHeight(52)),
                     child: Text(context.l10n.t(saving ? 'saving' : 'save')))),
           ],
         ))));

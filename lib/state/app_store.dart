@@ -33,7 +33,7 @@ final appStoreProvider = NotifierProvider<AppStore, AppState>(AppStore.new);
 
 final appStartupProvider = FutureProvider<void>((ref) async {
   String? uid;
-  try { uid = (await ref.watch(authSessionProvider.future))?.id; } catch (_) {
+  try { uid = await ref.watch(authSessionProvider.selectAsync((account) => account?.id)); } catch (_) {
     // Missing account services must not prevent using the local profile.
   }
   if (!ref.mounted) return;
@@ -114,6 +114,16 @@ class AppStore extends Notifier<AppState> {
       state = state.copyWith(onboardingCompleted: true, localName: name);
     }
   }
+
+  /// Only the first connection adopts the profile created offline.
+  Future<String?> localProfileNameForLink() async {
+    if (!state.onboardingCompleted || state.localName.trim().isEmpty) return null;
+    final settings = await _deviceRepository!.settings();
+    return settings['google_profile_linked'] == '1' ? null : state.localName.trim();
+  }
+
+  Future<void> completeLocalProfileLink() =>
+      _deviceRepository!.setting('google_profile_linked', '1');
 
   Future<void> catchUpRecurring() => _generateAutomaticRecurringThrough(DateTime.now());
 

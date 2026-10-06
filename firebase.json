@@ -1,3 +1,6 @@
 {
-  "firestore": {"rules": "firestore.rules"}
+  "firestore": {"rules": "firestore.rules"},
+  "storage": {"rules": "storage.rules"},
+  "functions": [{"source": "functions", "codebase": "report-email",
+    "ignore": ["node_modules", ".git", ".env*", ".secret.local", "*-debug.log", "test"]}]
 }

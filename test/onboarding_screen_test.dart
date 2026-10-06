@@ -175,8 +175,13 @@ void main() {
   testWidgets('pending sign in prevents duplicate actions', (tester) async {
     final auth = FakeAuthRepository()..pending = Completer<void>();
     final container = await mount(tester, auth);
+    expect(tester.getTopLeft(find.byType(FilledButton)).dy,
+        lessThan(tester.getTopLeft(find.byType(OutlinedButton)).dy));
     await tester.tap(find.text('Sign in with Google'));
     await tester.pump();
+    expect(find.descendant(of: find.byType(OutlinedButton),
+        matching: find.byType(CircularProgressIndicator)), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(
       tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed,
       isNull,

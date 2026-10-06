@@ -6,7 +6,9 @@ class FakeAuthRepository implements AuthRepository {
   final changes = StreamController<AuthAccount?>.broadcast();
   int signIns = 0;
   int signOuts = 0;
+  int profileUpdates = 0;
   Object? failure;
+  String? linkedDefaultName;
   Completer<void>? pending;
   FakeAuthRepository({this.account});
   @override
@@ -16,13 +18,14 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> signInWithGoogle() async {
+  Future<void> signInWithGoogle({String? defaultName}) async {
     signIns++;
     await pending?.future;
     if (failure != null) throw failure!;
-    account = const AuthAccount(
+    linkedDefaultName = defaultName;
+    account = AuthAccount(
         id: 'verified-firebase-uid',
-        name: 'Monthly User',
+        name: defaultName ?? 'Monthly User',
         email: 'user@example.com');
     changes.add(account);
   }
@@ -36,4 +39,15 @@ class FakeAuthRepository implements AuthRepository {
   }
 
   Future<void> dispose() => changes.close();
+
+  @override
+  Future<void> updateProfile({required String name, String? photoUrl}) async {
+    profileUpdates++;
+    await pending?.future;
+    if (failure != null) throw failure!;
+    final current = account!;
+    account = AuthAccount(id: current.id, name: name, email: current.email,
+        photoUrl: photoUrl);
+    changes.add(account);
+  }
 }
