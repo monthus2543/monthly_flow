@@ -11,6 +11,7 @@ import 'account_screen.dart';
 import 'category_manager_screen.dart';
 import 'planner_screen.dart';
 import 'export_screen.dart';
+import '../currency/app_currency.dart';
 
 class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
@@ -94,7 +95,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           ListTile(
               contentPadding: EdgeInsets.zero,
               title: Text(context.l10n.t('currency')),
-              trailing: const Text('THB (฿)')),
+              subtitle: Text(context.l10n.t('currency_display_only')),
+              trailing: DropdownButton<String>(
+                value: store.currencyCode,
+                underline: const SizedBox.shrink(),
+                items: [for (final item in currencySymbols.entries)
+                  DropdownMenuItem(value: item.key, child: Semantics(label: item.key, child: Text(item.value)))],
+                onChanged: (value) async {
+                  if (value == null || value == store.currencyCode) return;
+                  await Future<void>.delayed(const Duration(milliseconds: 350));
+                  if (!context.mounted) return;
+                  try { await store.setCurrency(value); }
+                  catch (_) { if (context.mounted) showAppAlert(context, context.l10n.t('save_failed'), isError: true); }
+                },
+              )),
         ])),
         const SizedBox(height: 13),
         Surface(
@@ -190,10 +204,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _configurePin(BuildContext context) async {
+    final appStore = store;
+    final enabled = appStore.pinHash.isNotEmpty;
     final result = await showDialog<String>(
         context: context,
-        builder: (_) => _PinDialog(enabled: store.pinHash.isNotEmpty));
-    if (result != null) await store.setPin(result);
+        builder: (_) => _PinDialog(enabled: enabled));
+    if (!mounted || result == null) return;
+    await appStore.setPin(result);
   }
 
 
@@ -235,8 +252,10 @@ class _PinDialogState extends State<_PinDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
+        insetPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
+        constraints: const BoxConstraints(maxWidth: 360),
         title: Text(context.l10n.t('app_pin')),
-        content: Pinput(
+        content: SizedBox(height: 56, child: Pinput(
             controller: controller,
             length: 6,
             autofocus: true,
@@ -247,7 +266,7 @@ class _PinDialogState extends State<_PinDialog> {
                 decoration: _pinTheme(context).decoration?.copyWith(
                     border: Border.all(
                         color: Theme.of(context).colorScheme.primary,
-                        width: 2)))),
+                        width: 2))))),
         actions: [
           if (widget.enabled)
             TextButton(
@@ -266,7 +285,7 @@ class _PinDialogState extends State<_PinDialog> {
       );
 
   PinTheme _pinTheme(BuildContext context) => PinTheme(
-        width: 42,
+        width: ((MediaQuery.sizeOf(context).width - 96 - 40) / 6).clamp(24.0, 42.0),
         height: 52,
         textStyle: const TextStyle(fontSize: 19, fontWeight: FontWeight.w600),
         decoration: BoxDecoration(

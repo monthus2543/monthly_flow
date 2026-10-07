@@ -16,6 +16,9 @@ class DailyTrendScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(appStoreProvider);
     final store = ref.read(appStoreProvider.notifier);
+    final dark = Theme.of(context).brightness == Brightness.dark;
+    final incomeColor = dark ? AppColors.tealDark : brandGreen;
+    final expenseColor = dark ? AppColors.errorDark : expenseRed;
     final days =
         DateTime(store.selectedMonth.year, store.selectedMonth.month + 1, 0)
             .day;
@@ -35,14 +38,13 @@ class DailyTrendScreen extends ConsumerWidget {
                   const TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
           const SizedBox(height: 10),
           Row(children: [
-            _Legend(color: brandGreen, label: context.l10n.t('income')),
+            _Legend(color: incomeColor, label: context.l10n.t('income')),
             const SizedBox(width: 18),
-            _Legend(color: expenseRed, label: context.l10n.t('expense')),
+            _Legend(color: expenseColor, label: context.l10n.t('expense')),
           ]),
           const SizedBox(height: 16),
           for (var start = 0; start < values.length; start += 7) ...[
             Surface(
-                color: Colors.white,
                 child: _WeekChart(
                     weekNumber: start ~/ 7 + 1,
                     values: values.sublist(
@@ -63,6 +65,7 @@ class _WeekChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     final maximum = math.max(
         1,
         values.fold<int>(
@@ -70,7 +73,7 @@ class _WeekChart extends StatelessWidget {
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       Text(
           '${context.l10n.t('week')} $weekNumber · ${context.l10n.t('day')} ${values.first.$1}–${values.last.$1}',
-          style: const TextStyle(fontWeight: FontWeight.w600)),
+          style: TextStyle(color: theme.colorScheme.onSurface, fontWeight: FontWeight.w600)),
       const SizedBox(height: 10),
       SizedBox(
         height: 220,
@@ -102,7 +105,7 @@ class _WeekChart extends StatelessWidget {
                 getTitlesWidget: (value, meta) => SideTitleWidget(
                     meta: meta,
                     child: Text(_shortAmount(value),
-                        style: const TextStyle(fontSize: 9, color: muted))),
+                        style: TextStyle(fontSize: 9, color: theme.colorScheme.onSurfaceVariant))),
               )),
               bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
@@ -116,7 +119,7 @@ class _WeekChart extends StatelessWidget {
                   return SideTitleWidget(
                       meta: meta,
                       child: Text('${values[index].$1}',
-                          style: const TextStyle(fontSize: 10, color: muted)));
+                          style: TextStyle(fontSize: 10, color: theme.colorScheme.onSurfaceVariant)));
                 },
               )),
             ),
@@ -136,8 +139,8 @@ class _WeekChart extends StatelessWidget {
             barGroups: [
               for (var index = 0; index < values.length; index++)
                 BarChartGroupData(x: index, barsSpace: 3, barRods: [
-                  _rod(values[index].$2, brandGreen),
-                  _rod(values[index].$3, expenseRed),
+                  _rod(values[index].$2, dark ? AppColors.tealDark : brandGreen),
+                  _rod(values[index].$3, dark ? AppColors.errorDark : expenseRed),
                 ])
             ],
           ),

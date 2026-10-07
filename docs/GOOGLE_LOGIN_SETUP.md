@@ -39,6 +39,15 @@ keytool -list -v -alias androiddebugkey -keystore "$env:USERPROFILE\.android\deb
 
 แอป release ปัจจุบันยังใช้ debug signing ส่วน APK ที่สร้างใน CI อาจใช้ใบรับรอง debug คนละใบ ต้องลงทะเบียน fingerprint ของใบรับรองที่เซ็น APK นั้นจริง หรือกำหนดกุญแจเซ็นที่คงที่ก่อนใช้ทดสอบ Login ผ่าน APK จาก CI
 
+### ตรวจ APK จาก GitHub วันที่ 7 ตุลาคม 2026
+
+APK `1.6.0+6` จาก Actions run `37515994941` ใช้ใบรับรองต่างจาก APK ที่สร้างบนเครื่องพัฒนา พบว่า Firebase มีเฉพาะ fingerprint ของเครื่องพัฒนา จึงเพิ่ม SHA-1 และ SHA-256 ของ APK จาก GitHub ใน Android app `1:559858973039:android:d494b2436655251484109a` แล้ว:
+
+- SHA-1: `9d827dc81d4c9233582bd98719a2e7940c3bf668`
+- SHA-256: `710e4eb9036dab300a3a8052a77196d8b9140857b0ad22c10f4617a9cd016925`
+
+อ่านจาก APK จริงด้วย `apksigner verify --print-certs` และตรวจรายการใน Firebase หลังเพิ่ม ไม่ต้องเปลี่ยนโค้ดหรือถอนการติดตั้ง APK นี้เพื่อลองใหม่ แต่ยังต้องทดสอบการเลือกบัญชีบนเครื่องผู้ใช้จริง การสร้างใหม่บน GitHub ปัจจุบันยังสร้าง debug keystore ใหม่ในแต่ละ runner จึงต้องตั้ง signing key ที่คงที่ก่อนปล่อย Build ถัดไป เพื่อไม่ให้ปัญหา fingerprint เปลี่ยนเกิดซ้ำ
+
 ## แก้ Google Login บน Emulator
 
 ถ้า Google Login แสดง `providerConfigurationError` และ log มี `SERVICE_VERSION_UPDATE_REQUIRED` ให้ตรวจเวอร์ชัน Google Play services ของเครื่องทดสอบก่อนแก้ Firebase หรือ SHA อีกครั้ง

@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:currency_text_input_formatter/currency_text_input_formatter.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,13 +9,20 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/app_primary_button.dart';
+import '../widgets/receipt_preview.dart';
+import '../receipts/receipt_storage.dart';
+import '../receipts/receipt_cloud.dart';
 
 class EntryFormScreen extends ConsumerStatefulWidget {
   final Entry? existing;
   final String? initialType;
   final Entry? initial;
-  const EntryFormScreen(
-      {super.key, this.existing, this.initialType, this.initial});
+  const EntryFormScreen({
+    super.key,
+    this.existing,
+    this.initialType,
+    this.initial,
+  });
   @override
   ConsumerState<EntryFormScreen> createState() => _EntryFormScreenState();
 }
@@ -33,6 +41,8 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
   String receiptPath = '';
   bool isFavorite = false;
   bool saving = false;
+  bool pickingReceipt = false;
+  double? receiptProgress;
   bool repeatMonthly = false;
   bool noEndDate = false;
   late DateTime startMonth;
@@ -50,20 +60,27 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
     final entry = widget.existing ?? widget.initial;
     title = TextEditingController(text: entry?.title ?? '');
     amount = TextEditingController(
-        text:
-            entry == null ? '' : (entry.amountMinor / 100).toStringAsFixed(2));
+      text: entry == null ? '' : (entry.amountMinor / 100).toStringAsFixed(2),
+    );
     amountFocus = FocusNode()..addListener(_handleAmountFocus);
     note = TextEditingController(text: entry?.note ?? '');
     numberOfMonths = TextEditingController(text: '12');
     final now = DateTime.now();
     final selectedMonth = store.selectedMonth;
-    final lastDay =
-        DateTime(selectedMonth.year, selectedMonth.month + 1, 0).day;
-    date = entry?.date ??
+    final lastDay = DateTime(
+      selectedMonth.year,
+      selectedMonth.month + 1,
+      0,
+    ).day;
+    date =
+        entry?.date ??
         (sameMonth(now, selectedMonth)
             ? now
-            : DateTime(selectedMonth.year, selectedMonth.month,
-                now.day.clamp(1, lastDay)));
+            : DateTime(
+                selectedMonth.year,
+                selectedMonth.month,
+                now.day.clamp(1, lastDay),
+              ));
     startMonth = DateTime(date.year, date.month);
     type = entry?.type ?? widget.initialType ?? expense;
     categoryId = entry?.categoryId;
@@ -110,36 +127,93 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
     if (!(Form.maybeOf(formContext)?.validate() ?? false)) return;
     setState(() => saving = true);
     try {
+      final owner = store.activeAccountId;
+      if (receiptCloudEnabled && owner != null &&
+          receiptPath.isNotEmpty &&
+          !isCloudReceipt(receiptPath)) {
+        final cloudPath = await ref
+            .read(receiptCloudProvider)
+            .upload(
+              owner,
+              receiptPath,
+              onProgress: (progress) {
+                if (mounted) setState(() => receiptProgress = progress);
+              },
+            );
+        if (!mounted || store.activeAccountId != owner) return;
+        setState(() {
+          receiptPath = cloudPath;
+          receiptProgress = null;
+        });
+      }
       final now = DateTime.now().microsecondsSinceEpoch;
       final entry = Entry(
-          id: widget.existing?.id,
-          title: title.text.trim(),
-          amountMinor: _minor(amount.text)!,
-          type: type,
-          categoryId: categoryId!,
-          date: date,
-          note: note.text.trim(),
-          createdAt: widget.existing?.createdAt ?? now,
-          updatedAt: now,
-          accountId: accountId,
-          receiptPath: receiptPath,
-          isFavorite: isFavorite);
+        id: widget.existing?.id,
+        title: title.text.trim(),
+        amountMinor: _minor(amount.text)!,
+        type: type,
+        categoryId: categoryId!,
+        date: date,
+        note: note.text.trim(),
+        createdAt: widget.existing?.createdAt ?? now,
+        updatedAt: now,
+        accountId: accountId,
+        receiptPath: receiptPath,
+        isFavorite: isFavorite,
+      );
       if (repeatMonthly && widget.existing == null) {
         if (noEndDate) {
           await store.saveIndefiniteMonthlyEntry(entry, startMonth);
         } else {
           await store.saveMonthlyEntries(
-              entry, startMonth, int.parse(numberOfMonths.text));
+            entry,
+            startMonth,
+            int.parse(numberOfMonths.text),
+          );
         }
       } else {
         await store.save(entry);
       }
       if (mounted) Navigator.pop(context);
+    } catch (error) {
+      if (mounted)
+        showAppAlert(
+          context,
+          context.l10n.t(
+            error is ReceiptCloudFailure ? error.key : 'save_failed',
+          ),
+          isError: true,
+        );
+    } finally {
+      if (mounted)
+        setState(() {
+          saving = false;
+          receiptProgress = null;
+        });
+    }
+  }
+
+  Future<void> _pickReceipt() async {
+    if (pickingReceipt || saving) return;
+    setState(() => pickingReceipt = true);
+    try {
+      final picked = await ImagePicker().pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 80,
+      );
+      if (picked == null || !mounted) return;
+      final documents = await getApplicationDocumentsDirectory();
+      final storedPath = await storeReceipt(picked, documents);
+      if (mounted) setState(() => receiptPath = storedPath);
     } catch (_) {
       if (mounted)
-        showAppAlert(context, context.l10n.t('save_failed'), isError: true);
+        showAppAlert(
+          context,
+          context.l10n.t('receipt_attach_failed'),
+          isError: true,
+        );
     } finally {
-      if (mounted) setState(() => saving = false);
+      if (mounted) setState(() => pickingReceipt = false);
     }
   }
 
@@ -147,18 +221,22 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
     final id = widget.existing?.id;
     if (id == null) return;
     final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (dialogContext) => AlertDialog(
-                title: Text(context.l10n.t('delete_title')),
-                content: Text(context.l10n.t('delete_body')),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(dialogContext, false),
-                      child: Text(context.l10n.t('cancel'))),
-                  TextButton(
-                      onPressed: () => Navigator.pop(dialogContext, true),
-                      child: Text(context.l10n.t('delete'))),
-                ]));
+      context: context,
+      builder: (dialogContext) => AlertDialog(
+        title: Text(context.l10n.t('delete_title')),
+        content: Text(context.l10n.t('delete_body')),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, false),
+            child: Text(context.l10n.t('cancel')),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(dialogContext, true),
+            child: Text(context.l10n.t('delete')),
+          ),
+        ],
+      ),
+    );
     if (confirmed != true) return;
     try {
       await store.delete(id);
@@ -169,67 +247,80 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
     }
   }
 
-  Widget _recurrenceOptions(BuildContext context) => Column(children: [
-        CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            controlAffinity: ListTileControlAffinity.leading,
-            title: Text(context.l10n.t('repeat_monthly')),
-            subtitle: Text(context.l10n.t('repeat_monthly_hint')),
-            value: repeatMonthly,
-            onChanged: (value) => setState(() {
-                  repeatMonthly = value ?? false;
-                  if (repeatMonthly) {
-                    startMonth = DateTime(date.year, date.month);
-                  } else {
-                    noEndDate = false;
-                  }
-                })),
-        if (repeatMonthly) ...[
-          OutlinedButton.icon(
-              onPressed: () async {
-                final picked = await showDatePicker(
-                    context: context,
-                    initialDate: startMonth,
-                    firstDate: DateTime(2000),
-                    lastDate: DateTime(2100));
-                if (picked != null) {
-                  setState(
-                      () => startMonth = DateTime(picked.year, picked.month));
-                }
-              },
-              icon: const Icon(Icons.date_range_outlined),
-              label: Text(
-                  '${context.l10n.t('start_month')}: ${MaterialLocalizations.of(context).formatMonthYear(startMonth)}')),
-          const SizedBox(height: 12),
-          Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+  Widget _recurrenceOptions(BuildContext context) => Column(
+    children: [
+      CheckboxListTile(
+        contentPadding: EdgeInsets.zero,
+        controlAffinity: ListTileControlAffinity.leading,
+        title: Text(context.l10n.t('repeat_monthly')),
+        subtitle: Text(context.l10n.t('repeat_monthly_hint')),
+        value: repeatMonthly,
+        onChanged: (value) => setState(() {
+          repeatMonthly = value ?? false;
+          if (repeatMonthly) {
+            startMonth = DateTime(date.year, date.month);
+          } else {
+            noEndDate = false;
+          }
+        }),
+      ),
+      if (repeatMonthly) ...[
+        OutlinedButton.icon(
+          onPressed: () async {
+            final picked = await showDatePicker(
+              context: context,
+              initialDate: startMonth,
+              firstDate: DateTime(2000),
+              lastDate: DateTime(2100),
+            );
+            if (picked != null) {
+              setState(() => startMonth = DateTime(picked.year, picked.month));
+            }
+          },
+          icon: const Icon(Icons.date_range_outlined),
+          label: Text(
+            '${context.l10n.t('start_month')}: ${MaterialLocalizations.of(context).formatMonthYear(startMonth)}',
+          ),
+        ),
+        const SizedBox(height: 12),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
             Expanded(
-                child: TextFormField(
-                    controller: numberOfMonths,
-                    enabled: !noEndDate,
-                    keyboardType: TextInputType.number,
-                    decoration: InputDecoration(
-                        labelText: context.l10n.t('number_of_months')),
-                    validator: (value) {
-                      if (!repeatMonthly || noEndDate) return null;
-                      final parsed = int.tryParse(value ?? '');
-                      return parsed == null || parsed < 1 || parsed > 120
-                          ? context.l10n.t('invalid_month_count')
-                          : null;
-                    })),
+              child: TextFormField(
+                controller: numberOfMonths,
+                enabled: !noEndDate,
+                keyboardType: TextInputType.number,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('number_of_months'),
+                ),
+                validator: (value) {
+                  if (!repeatMonthly || noEndDate) return null;
+                  final parsed = int.tryParse(value ?? '');
+                  return parsed == null || parsed < 1 || parsed > 120
+                      ? context.l10n.t('invalid_month_count')
+                      : null;
+                },
+              ),
+            ),
             const SizedBox(width: 8),
             SizedBox(
-                width: 140,
-                child: CheckboxListTile(
-                    dense: true,
-                    contentPadding: EdgeInsets.zero,
-                    controlAffinity: ListTileControlAffinity.leading,
-                    title: Text(context.l10n.t('no_end_date')),
-                    value: noEndDate,
-                    onChanged: (value) =>
-                        setState(() => noEndDate = value ?? false))),
-          ]),
-        ],
-      ]);
+              width: 140,
+              child: CheckboxListTile(
+                dense: true,
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: Text(context.l10n.t('no_end_date')),
+                value: noEndDate,
+                onChanged: (value) =>
+                    setState(() => noEndDate = value ?? false),
+              ),
+            ),
+          ],
+        ),
+      ],
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -261,12 +352,14 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
           enabledBorder: border,
         ),
       ),
-      child: Builder(builder: (formContext) => DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: isBottomSheet ? null : appBackgroundGradient(formContext),
+      child: Builder(
+        builder: (formContext) => DecoratedBox(
+          decoration: BoxDecoration(
+            gradient: isBottomSheet ? null : appBackgroundGradient(formContext),
+          ),
+          child: _buildForm(formContext),
         ),
-        child: _buildForm(formContext),
-      )),
+      ),
     );
   }
 
@@ -277,51 +370,64 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
         ? context.l10n.t('edit_entry')
         : context.l10n.t(type == income ? 'add_income' : 'add_expense');
     return Scaffold(
-        appBar: AppBar(title: Text(heading), actions: [
+      appBar: AppBar(
+        title: Text(heading),
+        actions: [
           if (widget.existing != null)
             IconButton(
-                onPressed: _delete,
-                icon: Icon(Icons.delete_outline,
-                    color: Theme.of(context).colorScheme.error)),
-        ]),
-        body: SafeArea(
-            child: Form(
-                child: ListView(
-          padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
-          children: [
-            Text(context.l10n.t('form_hint'),
+              onPressed: _delete,
+              icon: Icon(
+                Icons.delete_outline,
+                color: Theme.of(context).colorScheme.error,
+              ),
+            ),
+        ],
+      ),
+      body: SafeArea(
+        child: Form(
+          child: ListView(
+            padding: const EdgeInsets.fromLTRB(24, 16, 24, 28),
+            children: [
+              Text(
+                context.l10n.t('form_hint'),
                 style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant)),
-            const SizedBox(height: 16),
-            AppSegmentedControl(
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 16),
+              AppSegmentedControl(
                 segments: transactionTypeSegments(context),
                 value: type,
                 onChanged: (selection) => setState(() {
-                      type = selection;
-                      if (!options
-                          .any((c) => c.id == categoryId && c.type == type))
-                        categoryId = null;
-                    })),
-            if (widget.existing == null) ...[
-              const SizedBox(height: 8),
-              _recurrenceOptions(context),
-            ],
-            const SizedBox(height: 15),
-            TextFormField(
+                  type = selection;
+                  if (!options.any((c) => c.id == categoryId && c.type == type))
+                    categoryId = null;
+                }),
+              ),
+              if (widget.existing == null) ...[
+                const SizedBox(height: 8),
+                _recurrenceOptions(context),
+              ],
+              const SizedBox(height: 15),
+              TextFormField(
                 controller: amount,
                 focusNode: amountFocus,
                 inputFormatters: [amountFormatter],
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
                 textInputAction: TextInputAction.next,
                 decoration: InputDecoration(
-                    labelText: context.l10n.t('amount'),
-                    prefixIcon: const Icon(LucideIcons.walletCards),
-                    suffixIcon: amount.text.isEmpty
-                        ? null
-                        : IconButton(
-                            onPressed: () => setState(amount.clear),
-                            icon: const Icon(LucideIcons.x, size: 18))),
+                  labelText: store.currencyCode == 'THB' ? context.l10n.t('amount')
+                      : context.l10n.t('amount_currency').replaceAll('{currency}', store.currencyCode),
+                  prefixIcon: const Icon(LucideIcons.walletCards),
+                  suffixIcon: amount.text.isEmpty
+                      ? null
+                      : IconButton(
+                          onPressed: () => setState(amount.clear),
+                          icon: const Icon(LucideIcons.x, size: 18),
+                        ),
+                ),
                 onChanged: (_) => setState(() {}),
                 onEditingComplete: () {
                   _formatAmount();
@@ -329,90 +435,133 @@ class _EntryFormScreenState extends ConsumerState<EntryFormScreen> {
                 },
                 validator: (value) => _minor(value ?? '') == null
                     ? context.l10n.t('invalid_amount')
-                    : null),
-            const SizedBox(height: 14),
-            TextFormField(
+                    : null,
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
                 controller: title,
                 maxLength: 80,
                 decoration: InputDecoration(
-                    labelText: context.l10n.t('title'),
-                    prefixIcon: const Icon(LucideIcons.textCursorInput),
-                    hintText: context.l10n.t('title_hint')),
+                  labelText: context.l10n.t('title'),
+                  prefixIcon: const Icon(LucideIcons.textCursorInput),
+                  hintText: context.l10n.t('title_hint'),
+                ),
                 validator: (value) => (value ?? '').trim().isEmpty
                     ? context.l10n.t('required_title')
-                    : null),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<int>(
+                    : null,
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<int>(
                 key: ValueKey(type),
                 initialValue: selected,
-                decoration:
-                    InputDecoration(labelText: context.l10n.t('category')),
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('category'),
+                ),
                 items: [
                   for (final category in options)
                     DropdownMenuItem(
-                        value: category.id,
-                        child: Text(categoryLabel(context, category)))
+                      value: category.id,
+                      child: Text(
+                        categoryLabel(context, category),
+                        style: TextStyle(
+                          color: categoryTextColor(context, category),
+                        ),
+                      ),
+                    ),
                 ],
                 onChanged: (value) => setState(() => categoryId = value),
                 validator: (value) =>
-                    value == null ? context.l10n.t('required_category') : null),
-            const SizedBox(height: 14),
-            DropdownButtonFormField<int>(
+                    value == null ? context.l10n.t('required_category') : null,
+              ),
+              const SizedBox(height: 14),
+              DropdownButtonFormField<int>(
                 initialValue: accountId,
-                decoration:
-                    InputDecoration(labelText: context.l10n.t('account')),
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('account'),
+                ),
                 items: [
                   for (final account in store.accounts)
                     DropdownMenuItem(
-                        value: account.id,
-                        child: Text(account.name == 'cash'
+                      value: account.id,
+                      child: Text(
+                        account.name == 'cash'
                             ? context.l10n.t('cash')
-                            : account.name))
+                            : account.name,
+                      ),
+                    ),
                 ],
                 onChanged: (value) {
                   if (value != null) setState(() => accountId = value);
-                }),
-            const SizedBox(height: 8),
-            AppSwitchTile(
+                },
+              ),
+              const SizedBox(height: 8),
+              AppSwitchTile(
                 title: context.l10n.t('favorite'),
                 value: isFavorite,
-                onChanged: (value) => setState(() => isFavorite = value)),
-            OutlinedButton.icon(
-                onPressed: () async {
-                  final picked = await ImagePicker()
-                      .pickImage(source: ImageSource.gallery, imageQuality: 80);
-                  if (picked != null) setState(() => receiptPath = picked.path);
-                },
-                icon: Icon(receiptPath.isEmpty
-                    ? Icons.add_a_photo_outlined
-                    : Icons.check_circle_outline),
-                label: Text(context.l10n.t(receiptPath.isEmpty
-                    ? 'attach_receipt'
-                    : 'receipt_attached'))),
-            const SizedBox(height: 14),
-            OutlinedButton.icon(
+                onChanged: (value) => setState(() => isFavorite = value),
+              ),
+              OutlinedButton.icon(
+                onPressed: pickingReceipt || saving ? null : _pickReceipt,
+                icon: Icon(
+                  receiptPath.isEmpty
+                      ? Icons.add_a_photo_outlined
+                      : Icons.check_circle_outline,
+                ),
+                label: Text(
+                  context.l10n.t(
+                    receiptPath.isEmpty ? 'attach_receipt' : 'receipt_attached',
+                  ),
+                ),
+              ),
+              if (receiptPath.isNotEmpty) ...[
+                ReceiptPreview(path: receiptPath),
+                if (receiptProgress != null) ...[
+                  const SizedBox(height: 8),
+                  LinearProgressIndicator(value: receiptProgress),
+                  Text(context.l10n.t('receipt_uploading')),
+                ],
+                TextButton.icon(
+                  onPressed: saving || pickingReceipt
+                      ? null
+                      : () => setState(() => receiptPath = ''),
+                  icon: const Icon(Icons.close_rounded),
+                  label: Text(context.l10n.t('remove_receipt')),
+                ),
+              ],
+              const SizedBox(height: 14),
+              OutlinedButton.icon(
                 onPressed: () async {
                   final picked = await showDatePicker(
-                      context: context,
-                      initialDate: date,
-                      firstDate: DateTime(2000),
-                      lastDate: DateTime(2100));
+                    context: context,
+                    initialDate: date,
+                    firstDate: DateTime(2000),
+                    lastDate: DateTime(2100),
+                  );
                   if (picked != null) setState(() => date = picked);
                 },
                 icon: const Icon(Icons.calendar_month_outlined),
-                label: Text(dateLabel(context, date))),
-            const SizedBox(height: 14),
-            TextFormField(
+                label: Text(dateLabel(context, date)),
+              ),
+              const SizedBox(height: 14),
+              TextFormField(
                 controller: note,
                 maxLines: 3,
                 maxLength: 300,
-                decoration: InputDecoration(labelText: context.l10n.t('note'))),
-            const SizedBox(height: 14),
-            Builder(
+                decoration: InputDecoration(labelText: context.l10n.t('note')),
+              ),
+              const SizedBox(height: 14),
+              Builder(
                 builder: (formContext) => AppPrimaryButton(
-                    onPressed: saving ? null : () => _save(formContext),
-                    child: Text(context.l10n.t(saving ? 'saving' : 'save')))),
-          ],
-        ))));
+                  onPressed: saving || pickingReceipt
+                      ? null
+                      : () => _save(formContext),
+                  child: Text(context.l10n.t(saving ? 'saving' : 'save')),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }

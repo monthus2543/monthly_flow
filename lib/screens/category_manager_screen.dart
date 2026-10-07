@@ -5,6 +5,7 @@ import '../models/finance_models.dart';
 import '../state/app_store.dart';
 import '../widgets/common_widgets.dart';
 import '../widgets/app_primary_button.dart';
+import '../widgets/category_color_picker.dart';
 
 class CategoryManagerScreen extends ConsumerStatefulWidget {
   const CategoryManagerScreen({super.key});
@@ -139,7 +140,14 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen>
                             size: 18,
                           ),
                         ),
-                        title: Text(categoryLabel(context, category)),
+                        title: Text(
+                          categoryLabel(context, category),
+                          style: category.colorValue == null
+                              ? null
+                              : TextStyle(
+                                  color: categoryTextColor(context, category),
+                                ),
+                        ),
                         trailing: Icon(
                           Icons.edit_outlined,
                           size: 18,
@@ -172,6 +180,7 @@ class _CategoryManagerScreenState extends ConsumerState<CategoryManagerScreen>
           result['type']!,
           existing?.icon ?? 'other',
           sortOrder: existing?.sortOrder ?? store.categories.length + 1,
+          colorValue: int.tryParse(result['color_value'] ?? ''),
         ),
       );
     }
@@ -189,6 +198,7 @@ class _CategoryDialog extends StatefulWidget {
 class _CategoryDialogState extends State<_CategoryDialog> {
   late final TextEditingController controller;
   late String type;
+  int? colorValue;
   final formKey = GlobalKey<FormState>();
   String initialLabel = '';
   bool initialized = false;
@@ -197,6 +207,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
     super.initState();
     controller = TextEditingController();
     type = widget.existing?.type ?? widget.initialType;
+    colorValue = widget.existing?.colorValue;
   }
 
   @override
@@ -220,6 +231,7 @@ class _CategoryDialogState extends State<_CategoryDialog> {
           ? widget.existing!.name
           : label,
       'type': type,
+      if (colorValue != null) 'color_value': colorValue.toString(),
     });
   }
 
@@ -281,60 +293,79 @@ class _CategoryDialogState extends State<_CategoryDialog> {
           ),
         ],
       ),
-      content: Form(
-        key: formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextFormField(
-              controller: controller,
-              textInputAction: TextInputAction.done,
-              decoration: InputDecoration(
-                labelText: context.l10n.t('category'),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(16),
-                  borderSide: BorderSide(color: color, width: 2),
+      content: SingleChildScrollView(
+        child: Form(
+          key: formKey,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              TextFormField(
+                controller: controller,
+                textInputAction: TextInputAction.done,
+                decoration: InputDecoration(
+                  labelText: context.l10n.t('category'),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(16),
+                    borderSide: BorderSide(color: color, width: 2),
+                  ),
                 ),
+                validator: (value) => (value ?? '').trim().isEmpty
+                    ? context.l10n.t('category_name_required')
+                    : null,
+                onFieldSubmitted: (_) => save(),
               ),
-              validator: (value) => (value ?? '').trim().isEmpty
-                  ? context.l10n.t('category_name_required')
-                  : null,
-              onFieldSubmitted: (_) => save(),
-            ),
-            const SizedBox(height: 20),
-            IntrinsicHeight(
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onSurfaceVariant,
-                        side: BorderSide(
-                          color: theme.colorScheme.outlineVariant,
+              const SizedBox(height: 20),
+              OutlinedButton.icon(
+                icon: Icon(
+                  Icons.circle,
+                  color: colorValue == null ? labelColor : Color(colorValue!),
+                  size: 22,
+                ),
+                label: Text(context.l10n.t('category_text_color')),
+                onPressed: () async {
+                  final selected = await showCategoryColorPicker(
+                    context,
+                    Color(colorValue ?? color.toARGB32()),
+                  );
+                  if (selected != null && mounted)
+                    setState(() => colorValue = selected.toARGB32());
+                },
+              ),
+              const SizedBox(height: 20),
+              IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: theme.colorScheme.onSurfaceVariant,
+                          side: BorderSide(
+                            color: theme.colorScheme.outlineVariant,
+                          ),
+                        ),
+                        onPressed: () => Navigator.pop(context),
+                        child: Text(context.l10n.t('cancel')),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: AppPrimaryButton(
+                        color: color,
+                        foregroundColor: Colors.white,
+                        onPressed: save,
+                        child: Text(
+                          context.l10n.t('save_category'),
+                          textAlign: TextAlign.center,
                         ),
                       ),
-                      onPressed: () => Navigator.pop(context),
-                      child: Text(context.l10n.t('cancel')),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: AppPrimaryButton(
-                      color: color,
-                      foregroundColor: Colors.white,
-                      onPressed: save,
-                      child: Text(
-                        context.l10n.t('save_category'),
-                        textAlign: TextAlign.center,
-                      ),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

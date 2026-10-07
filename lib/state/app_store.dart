@@ -8,6 +8,7 @@ import '../database/app_database.dart';
 import '../auth/auth_providers.dart';
 import '../sync/sync_local.dart';
 import '../models/finance_models.dart';
+import '../currency/app_currency.dart';
 import '../repositories/finance_repository.dart';
 
 final appDatabaseProvider = Provider<AppDatabase>((ref) {
@@ -64,6 +65,7 @@ class AppStore extends Notifier<AppState> {
   bool get darkMode => state.darkMode;
   String get languageCode => state.languageCode;
   String get themeColor => state.themeColor;
+  String get currencyCode => state.currencyCode;
   bool get hideBalances => state.hideBalances;
   bool get remindersEnabled => state.remindersEnabled;
   String get pinHash => state.pinHash;
@@ -91,6 +93,8 @@ class AppStore extends Notifier<AppState> {
       themeColor: themeColors.contains(values['theme_color'])
           ? values['theme_color']!
           : 'teal',
+      currencyCode: currencySymbols.containsKey(values['currency_code'])
+          ? values['currency_code']! : 'THB',
       hideBalances: values['hide_balances'] == '1',
       remindersEnabled: values['reminders_enabled'] != '0',
       pinHash: values['pin_hash'] ?? '',
@@ -243,6 +247,12 @@ class AppStore extends Notifier<AppState> {
     final next = code == 'en' ? 'en' : 'th';
     await _deviceRepository!.setting('language_code', next);
     if (ref.mounted) state = state.copyWith(languageCode: next);
+  }
+
+  Future<void> setCurrency(String code) async {
+    if (!currencySymbols.containsKey(code)) return;
+    await _deviceRepository!.setting('currency_code', code);
+    if (ref.mounted) state = state.copyWith(currencyCode: code);
   }
 
   Future<void> setHideBalances(bool value) async {

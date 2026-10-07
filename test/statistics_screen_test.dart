@@ -112,6 +112,26 @@ void main() {
       expect(find.byType(Table), findsOneWidget);
       expect(find.text('Salary'), findsOneWidget);
       expect(find.text('Expense'), findsOneWidget);
+      // Statistics read from oldest date to newest; same-day rows follow
+      // insertion order even when edited later or supplied in reverse order.
+      final unordered = [
+        Entry(id: 4, title: 'Later day', amountMinor: 10000,
+            type: expense, categoryId: 1, date: DateTime(2026, 10, 3), createdAt: 1),
+        Entry(id: 3, title: 'Same timestamp later', amountMinor: 10000,
+            type: expense, categoryId: 1, date: DateTime(2026, 10, 2), createdAt: 20),
+        Entry(id: 2, title: 'Second added', amountMinor: 10000,
+            type: expense, categoryId: 1, date: DateTime(2026, 10, 2), createdAt: 20),
+        Entry(id: 1, title: 'First added', amountMinor: 10000,
+            type: income, categoryId: 1, date: DateTime(2026, 10, 2, 12),
+            createdAt: 10, updatedAt: 100),
+      ];
+      store.setEntries(unordered);
+      await tester.pumpAndSettle();
+      final table = tester.widget<Table>(find.byType(Table));
+      final titles = table.children.skip(1).take(4).map((row) =>
+          ((row.children.first as Padding).child as Text).data).toList();
+      expect(titles, ['First added', 'Second added', 'Same timestamp later', 'Later day']);
+      expect(store.entries.map((entry) => entry.title), unordered.map((entry) => entry.title));
       for (final surface in tester.widgetList<Surface>(find.byType(Surface))) {
         final box = tester.widget<Container>(find
             .descendant(

@@ -1,6 +1,7 @@
 import 'color/color.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
+import 'currency/app_currency.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
@@ -31,7 +32,8 @@ class MonthlyFlowApp extends ConsumerStatefulWidget {
   ConsumerState<MonthlyFlowApp> createState() => _MonthlyFlowAppState();
 }
 
-class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> with WidgetsBindingObserver {
+class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp>
+    with WidgetsBindingObserver {
   bool unlocked = false;
   final _navigatorKey = GlobalKey<NavigatorState>();
 
@@ -40,14 +42,17 @@ class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> with WidgetsBin
     super.initState();
     WidgetsBinding.instance.addObserver(this);
   }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
+
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed) ref.read(syncCoordinatorProvider.notifier).request();
+    if (state == AppLifecycleState.resumed)
+      ref.read(syncCoordinatorProvider.notifier).request();
   }
 
   @override
@@ -60,13 +65,15 @@ class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> with WidgetsBin
           state.themeColor,
           state.pinHash,
           state.onboardingCompleted,
+          state.currencyCode,
         ),
       ),
     );
     ref.listen(authSessionProvider, (previous, next) {
       if (previous?.asData?.value?.id != next.asData?.value?.id) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (mounted) _navigatorKey.currentState?.popUntil((route) => route.isFirst);
+          if (mounted)
+            _navigatorKey.currentState?.popUntil((route) => route.isFirst);
         });
       }
     });
@@ -85,8 +92,8 @@ class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> with WidgetsBin
         GlobalCupertinoLocalizations.delegate,
       ],
       themeMode: settings.$2 ? ThemeMode.dark : ThemeMode.light,
-      theme: appTheme(Brightness.light, settings.$3),
-      darkTheme: appTheme(Brightness.dark, settings.$3),
+      theme: appTheme(Brightness.light, settings.$3, settings.$6),
+      darkTheme: appTheme(Brightness.dark, settings.$3, settings.$6),
       home: startup.when(
         loading: () => const SplashScreen(),
         error: (error, stack) => Scaffold(
@@ -112,8 +119,8 @@ class _MonthlyFlowAppState extends ConsumerState<MonthlyFlowApp> with WidgetsBin
         data: (_) => settings.$4.isNotEmpty && !unlocked
             ? _PinLock(onUnlocked: () => setState(() => unlocked = true))
             : settings.$5
-                ? const HomeShell()
-                : const OnboardingScreen(),
+            ? const HomeShell()
+            : const OnboardingScreen(),
       ),
     );
   }
@@ -137,69 +144,108 @@ class _PinLockState extends ConsumerState<_PinLock> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-        body: DecoratedBox(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                Theme.of(context).colorScheme.primaryContainer,
-                Theme.of(context).scaffoldBackgroundColor,
-              ],
-            ),
-          ),
-          child: Center(
+    body: DecoratedBox(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Theme.of(context).colorScheme.primaryContainer,
+            Theme.of(context).scaffoldBackgroundColor,
+          ],
+        ),
+      ),
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 360),
-              child: Padding(
-                padding: const EdgeInsets.all(28),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(
-                      Icons.lock_outline,
-                      size: 54,
-                      color: Theme.of(context).colorScheme.primary,
+              constraints: BoxConstraints(minHeight: constraints.maxHeight),
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 360),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 24,
+                      vertical: 20,
                     ),
-                    const SizedBox(height: 18),
-                    Text(
-                      context.l10n.t('unlock_app'),
-                      style:
-                          Theme.of(context).textTheme.headlineSmall?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
-                    ),
-                    const SizedBox(height: 18),
-                    Pinput(
-                      controller: controller,
-                      length: 6,
-                      obscureText: true,
-                      keyboardType: TextInputType.number,
-                      autofocus: true,
-                      defaultPinTheme: _pinTheme(context),
-                      focusedPinTheme: _pinTheme(context).copyWith(
-                        decoration: _pinTheme(context).decoration?.copyWith(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          Icons.lock_outline,
+                          size: 48,
+                          color: Theme.of(context).colorScheme.primary,
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          context.l10n.t('unlock_app'),
+                          style: Theme.of(context).textTheme.headlineSmall
+                              ?.copyWith(fontWeight: FontWeight.w600),
+                        ),
+                        const SizedBox(height: 18),
+                        Pinput(
+                          controller: controller,
+                          length: 6,
+                          obscureText: true,
+                          keyboardType: TextInputType.number,
+                          autofocus: true,
+                          defaultPinTheme: _pinTheme(context),
+                          focusedPinTheme: _pinTheme(context).copyWith(
+                            decoration: _pinTheme(context).decoration?.copyWith(
                               border: Border.all(
                                 color: Theme.of(context).colorScheme.primary,
                                 width: 2,
                               ),
                             ),
-                      ),
-                      errorText: error.isEmpty ? null : error,
-                      onCompleted: (_) => _unlock(),
+                          ),
+                          forceErrorState: error.isNotEmpty,
+                          errorPinTheme: _pinTheme(context).copyWith(
+                            decoration: _pinTheme(context).decoration?.copyWith(
+                              border: Border.all(
+                                color: Theme.of(context).colorScheme.error,
+                                width: 2,
+                              ),
+                            ),
+                          ),
+                          onChanged: (_) {
+                            if (error.isNotEmpty) setState(() => error = '');
+                          },
+                          onCompleted: (_) => _unlock(),
+                        ),
+                        SizedBox(
+                          height:
+                              MediaQuery.textScalerOf(context).scale(14) + 14,
+                          child: Center(
+                            child: Semantics(
+                              liveRegion: true,
+                              child: Text(
+                                error,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Theme.of(context).colorScheme.error,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        FilledButton(
+                          onPressed: _unlock,
+                          child: Text(context.l10n.t('unlock')),
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 18),
-                    FilledButton(
-                      onPressed: _unlock,
-                      child: Text(context.l10n.t('unlock')),
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      );
+      ),
+    ),
+  );
   void _unlock() {
     if (ref.read(appStoreProvider.notifier).verifyPin(controller.text))
       widget.onUnlocked();
@@ -208,18 +254,19 @@ class _PinLockState extends ConsumerState<_PinLock> {
   }
 
   PinTheme _pinTheme(BuildContext context) => PinTheme(
-        width: 46,
-        height: 54,
-        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(15),
-          border: Border.all(color: Theme.of(context).dividerColor),
-        ),
-      );
+    width: ((MediaQuery.sizeOf(context).width.clamp(0.0, 360.0) - 48 - 40) / 6)
+        .clamp(24.0, 46.0),
+    height: 52,
+    textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+    decoration: BoxDecoration(
+      color: Theme.of(context).colorScheme.surface,
+      borderRadius: BorderRadius.circular(15),
+      border: Border.all(color: Theme.of(context).dividerColor),
+    ),
+  );
 }
 
-ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
+ThemeData appTheme(Brightness brightness, [String themeColor = 'teal', String currencyCode = 'THB']) {
   final dark = brightness == Brightness.dark;
   final accent = switch (themeColor) {
     'blue' => AppColors.blue,
@@ -235,17 +282,18 @@ ThemeData appTheme(Brightness brightness, [String themeColor = 'teal']) {
     'rose' => AppColors.roseDark,
     _ => AppColors.tealDark,
   };
-  final scheme =
-      ColorScheme.fromSeed(seedColor: accent, brightness: brightness).copyWith(
-    primary: dark ? darkAccent : accent,
-    secondary: dark ? AppColors.secondaryDark : AppColors.secondary,
-    tertiary: dark ? AppColors.accentBlueDark : AppColors.accentBlue,
-    error: dark ? AppColors.errorDark : AppColors.error,
-    surface: dark ? AppColors.surfaceDark : AppColors.surface,
-  );
+  final scheme = ColorScheme.fromSeed(seedColor: accent, brightness: brightness)
+      .copyWith(
+        primary: dark ? darkAccent : accent,
+        secondary: dark ? AppColors.secondaryDark : AppColors.secondary,
+        tertiary: dark ? AppColors.accentBlueDark : AppColors.accentBlue,
+        error: dark ? AppColors.errorDark : AppColors.error,
+        surface: dark ? AppColors.surfaceDark : AppColors.surface,
+      );
   GoogleFonts.config.allowRuntimeFetching = false;
   final baseTheme = ThemeData(
     useMaterial3: true,
+    extensions: [AppCurrency(currencyCode)],
     brightness: brightness,
     fontFamily: 'Prompt',
     colorScheme: scheme,

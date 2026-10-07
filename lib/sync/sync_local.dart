@@ -2,7 +2,7 @@ import 'package:sqflite/sqflite.dart';
 import 'sync_record.dart';
 
 /// SQLite triggers journal every finance mutation in the same transaction.
-/// Device preferences, PINs, tokens and receipt paths never enter this journal.
+/// Device preferences, PINs, tokens and local receipt paths never enter this journal.
 Future<void> initializeSyncSchema(DatabaseExecutor db) async {
   await db.execute(
     'CREATE TABLE IF NOT EXISTS sync_control (id INTEGER PRIMARY KEY, applying INTEGER NOT NULL DEFAULT 0)',
@@ -36,7 +36,7 @@ Future<void> initializeSyncSchema(DatabaseExecutor db) async {
       final pristine = table == 'accounts'
           ? row['name'] == 'cash' && row['opening_balance_minor'] == 0
           : table == 'categories' && id <= 8
-          ? row['name'] == defaults[id - 1] && row['is_active'] == 1
+          ? row['name'] == defaults[id - 1] && row['is_active'] == 1 && row['color_value'] == null
           : false;
       await db.insert('sync_records', {
         'entity_id': seed ? 'seed_${table}_$id' : newSyncId(),
@@ -90,7 +90,13 @@ class SyncLocal {
             ? <String, Object?>{}
             : Map<String, Object?>.from(rows.single);
         data.remove('id');
-        data.remove('receipt_path');
+        if (!(data['receipt_path'] is String &&
+            ((data['receipt_path'] as String).isEmpty ||
+                (data['receipt_path'] as String).startsWith(
+                  'firebase-storage://',
+                )))) {
+          data.remove('receipt_path');
+        }
         for (final reference in {
           'category_id': 'categories',
           'account_id': 'accounts',
@@ -182,9 +188,14 @@ class SyncLocal {
                   )! +
                   1);
         } else {
-          final data = Map<String, Object?>.from(remote.data)
-            ..remove('id')
-            ..remove('receipt_path');
+          final data = Map<String, Object?>.from(remote.data)..remove('id');
+          if (!(data['receipt_path'] is String &&
+              ((data['receipt_path'] as String).isEmpty ||
+                  (data['receipt_path'] as String).startsWith(
+                    'firebase-storage://',
+                  )))) {
+            data.remove('receipt_path');
+          }
           for (final reference in {
             'category_id': 'categories',
             'account_id': 'accounts',

@@ -32,6 +32,7 @@ class CategoryStore extends AppStore {
       value.type,
       value.icon,
       isActive: value.isActive,
+      colorValue: value.colorValue,
     );
     state = state.copyWith(
       categories: [
@@ -177,11 +178,17 @@ void main() {
             await tester.tap(find.byType(FloatingActionButton));
             await tester.pumpAndSettle();
             await tester.enterText(find.byType(TextField), 'New $type');
+            await tester.tap(find.text('Text color'));
+            await tester.pumpAndSettle();
+            await tester.tap(find.byKey(const ValueKey('category-color-#2563EB')));
+            await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+            await tester.pumpAndSettle();
             await tester.tap(
               find.widgetWithText(FilledButton, 'Save'),
             );
             await tester.pumpAndSettle();
             expect(store.saved.last.type, type);
+            expect(store.saved.last.colorValue, AppColors.blue.toARGB32());
             expect(find.text('New $type').hitTestable(), findsOneWidget);
           }
           await tester.drag(find.byType(TabBarView), const Offset(330, 0));
@@ -202,6 +209,22 @@ void main() {
           expect(store.saved.last.type, expense);
           expect(store.saved.last.isActive, isTrue);
           expect(store.saved.last.name, 'Renamed expense');
+          await tester.tap(find.text('New expense'));
+          await tester.pumpAndSettle();
+          await tester.tap(find.text('Text color'));
+          await tester.pumpAndSettle();
+          final hexField = find.widgetWithText(TextFormField, 'Color code (#RRGGBB)');
+          expect(tester.widget<TextFormField>(hexField).controller!.text, '#2563EB');
+          await tester.enterText(hexField, 'invalid');
+          await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+          await tester.pumpAndSettle();
+          expect(find.text('Enter a six-digit color code, such as #2563EB.'), findsOneWidget);
+          await tester.enterText(hexField, '#123456');
+          await tester.tap(find.widgetWithText(FilledButton, 'Save').last);
+          await tester.pumpAndSettle();
+          await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+          await tester.pumpAndSettle();
+          expect(store.saved.last.colorValue, 0xff123456);
           expect(tester.takeException(), isNull);
           await tester.pumpWidget(const SizedBox.shrink());
         },
