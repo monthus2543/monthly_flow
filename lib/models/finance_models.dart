@@ -8,9 +8,10 @@ class Category {
   final String icon;
   final int sortOrder;
   final bool isActive;
+  final int? colorValue;
 
   const Category(this.id, this.name, this.type, this.icon,
-      {this.sortOrder = 0, this.isActive = true});
+      {this.sortOrder = 0, this.isActive = true, this.colorValue});
 
   factory Category.fromMap(Map<String, Object?> map) => Category(
         map['id'] as int,
@@ -19,6 +20,7 @@ class Category {
         map['icon_key'] as String,
         sortOrder: (map['sort_order'] as int?) ?? 0,
         isActive: ((map['is_active'] as int?) ?? 1) == 1,
+        colorValue: map['color_value'] as int?,
       );
 
   Map<String, Object?> toMap() => {
@@ -26,7 +28,8 @@ class Category {
         'type': type,
         'icon_key': icon,
         'sort_order': sortOrder,
-        'is_active': isActive ? 1 : 0
+        'is_active': isActive ? 1 : 0,
+        'color_value': colorValue,
       };
 }
 

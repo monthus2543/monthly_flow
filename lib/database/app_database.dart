@@ -15,7 +15,7 @@ class AppDatabase {
     final base = await getDatabasesPath();
     final name = accountId == null ? 'monthly_flow' : 'monthly_flow_${sha256.convert(utf8.encode(accountId!))}';
     _database = await openDatabase('$base/$name.db',
-        version: 6,
+        version: 7,
         onConfigure: (db) async {
           await db.execute('PRAGMA foreign_keys = ON');
           await db.execute('PRAGMA recursive_triggers = ON');
@@ -25,7 +25,7 @@ class AppDatabase {
           id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
           type TEXT NOT NULL, icon_key TEXT NOT NULL,
           sort_order INTEGER NOT NULL DEFAULT 0,
-          is_active INTEGER NOT NULL DEFAULT 1)''');
+          is_active INTEGER NOT NULL DEFAULT 1, color_value INTEGER)''');
           await db.execute('''CREATE TABLE transactions (
           id INTEGER PRIMARY KEY AUTOINCREMENT, title TEXT NOT NULL,
           amount_minor INTEGER NOT NULL CHECK(amount_minor > 0),
@@ -67,6 +67,9 @@ class AppDatabase {
                 "ALTER TABLE recurring_rules ADD COLUMN start_month TEXT NOT NULL DEFAULT ''");
           }
           if (oldVersion < 6) await initializeSyncSchema(db);
+          if (oldVersion < 7) {
+            await db.execute('ALTER TABLE categories ADD COLUMN color_value INTEGER');
+          }
         });
     return _database!;
   }

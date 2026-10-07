@@ -39,6 +39,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
         categoryId: categoryId,
         includeCharts: charts,
         language: store.languageCode,
+        currencyCode: store.currencyCode,
       ),
       entries: List.of(store.entries),
       categoryNames: {
@@ -244,6 +245,7 @@ class _ExportScreenState extends ConsumerState<ExportScreen> {
                         child: Text(
                           categoryLabel(context, c),
                           overflow: TextOverflow.ellipsis,
+                          style: TextStyle(color: categoryTextColor(context, c)),
                         ),
                       ),
                     ),
@@ -520,7 +522,7 @@ class _ExcelPreviewScreenState extends ConsumerState<ExcelPreviewScreen> {
                     ),
                     const SizedBox(height: 12),
                     Text(
-                      '${context.l10n.t('income')} / ${context.l10n.t('expense')} · THB',
+                      '${context.l10n.t('income')} / ${context.l10n.t('expense')} · ${widget.data.options.currencyCode}',
                     ),
                   ],
                   SingleChildScrollView(

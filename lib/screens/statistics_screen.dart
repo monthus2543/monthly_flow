@@ -15,7 +15,15 @@ class StatisticsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     ref.watch(appStoreProvider);
     final store = ref.read(appStoreProvider.notifier);
-    final rows = store.monthlyEntries;
+    final rows = store.monthlyEntries.toList()
+      ..sort((a, b) {
+        final byDate = DateUtils.dateOnly(a.date)
+            .compareTo(DateUtils.dateOnly(b.date));
+        if (byDate != 0) return byDate;
+        final byCreation = a.createdAt.compareTo(b.createdAt);
+        if (byCreation != 0) return byCreation;
+        return (a.id ?? 0).compareTo(b.id ?? 0);
+      });
     final incomeTotal = store.monthlyIncome;
     final expenseTotal = store.monthlyExpense;
     final balance = incomeTotal - expenseTotal;

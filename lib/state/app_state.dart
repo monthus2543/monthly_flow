@@ -13,6 +13,7 @@ class AppState {
   final bool darkMode;
   final String languageCode;
   final String themeColor;
+  final String currencyCode;
   final bool hideBalances;
   final bool remindersEnabled;
   final String pinHash;
@@ -31,6 +32,7 @@ class AppState {
     this.darkMode = false,
     this.languageCode = 'th',
     this.themeColor = 'teal',
+    this.currencyCode = 'THB',
     this.hideBalances = false,
     this.remindersEnabled = true,
     this.pinHash = '',
@@ -58,6 +60,7 @@ class AppState {
     bool? darkMode,
     String? languageCode,
     String? themeColor,
+    String? currencyCode,
     bool? hideBalances,
     bool? remindersEnabled,
     String? pinHash,
@@ -76,6 +79,7 @@ class AppState {
         darkMode: darkMode ?? this.darkMode,
         languageCode: languageCode ?? this.languageCode,
         themeColor: themeColor ?? this.themeColor,
+        currencyCode: currencyCode ?? this.currencyCode,
         hideBalances: hideBalances ?? this.hideBalances,
         remindersEnabled: remindersEnabled ?? this.remindersEnabled,
         pinHash: pinHash ?? this.pinHash,

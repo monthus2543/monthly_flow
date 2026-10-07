@@ -6,6 +6,7 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:pinput/pinput.dart';
 import 'package:monthly_flow/auth/auth_providers.dart';
 import 'package:monthly_flow/auth/auth_repository.dart';
 import 'package:monthly_flow/main.dart';
@@ -82,6 +83,61 @@ Future<ProviderContainer> mount(
 }
 
 void main() {
+  for (final dark in [false, true]) {
+    testWidgets('PIN stays compact with keyboard and wrong-code feedback dark=$dark', (tester) async {
+      await mount(tester, FakeAuthRepository(), dark: dark, language: 'th',
+        pinHash: sha256.convert(utf8.encode('123456')).toString());
+      tester.view.viewInsets = FakeViewPadding(bottom: 280 * tester.view.devicePixelRatio);
+      addTearDown(tester.view.resetViewInsets);
+      await tester.pump(const Duration(milliseconds: 300));
+      final pin = find.byType(Pinput);
+      final unlock = find.widgetWithText(FilledButton, 'ปลดล็อก');
+      final buttonBefore = tester.getRect(unlock);
+      expect(tester.getSize(pin).height, lessThanOrEqualTo(60));
+      expect(tester.getSize(pin).width, lessThanOrEqualTo(272));
+      expect(buttonBefore.bottom, lessThanOrEqualTo(360));
+      await tester.enterText(find.byType(EditableText), '000000');
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.text('PIN ไม่ถูกต้อง'), findsOneWidget);
+      expect(tester.getSize(pin).height, lessThanOrEqualTo(60));
+      expect(tester.getRect(unlock).top, closeTo(buttonBefore.top, 1));
+      expect(tester.takeException(), isNull);
+      await tester.binding.setSurfaceSize(const Size(320, 360));
+      tester.view.viewInsets = FakeViewPadding(bottom: 200 * tester.view.devicePixelRatio);
+      await tester.pump(const Duration(milliseconds: 300));
+      await tester.ensureVisible(unlock);
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(unlock.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+  for (final dark in [false, true]) {
+    for (final pin in ['1234', '123456']) {
+      testWidgets('wrong PIN shows an error and allows correction dark=$dark length=${pin.length}', (tester) async {
+        await mount(tester, FakeAuthRepository(), dark: dark, language: 'th',
+          pinHash: sha256.convert(utf8.encode(pin)).toString());
+        await tester.enterText(find.byType(EditableText), '000000');
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('PIN ไม่ถูกต้อง'), findsOneWidget);
+        expect(find.byType(OnboardingScreen), findsNothing);
+        expect(find.byType(HomeShell), findsNothing);
+        await tester.enterText(find.byType(EditableText), '0');
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('PIN ไม่ถูกต้อง'), findsNothing);
+        await tester.tap(find.text('ปลดล็อก'));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.text('PIN ไม่ถูกต้อง'), findsOneWidget);
+        await tester.enterText(find.byType(EditableText), pin);
+        if (pin.length < 6) await tester.tap(find.text('ปลดล็อก'));
+        await tester.pumpAndSettle();
+        expect(find.byType(OnboardingScreen), findsOneWidget);
+        expect(find.text('PIN ไม่ถูกต้อง'), findsNothing);
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox.shrink());
+      });
+    }
+  }
   for (final dark in [false, true]) {
     for (final language in ['en', 'th']) {
       testWidgets(

@@ -24,6 +24,15 @@ Entry entry(
 
 void main() {
   setUpAll(() => initializeDateFormatting('th'));
+  test('export labels use the selected currency without converting amounts', () {
+    final report = ExcelReportData(options: ReportOptions(years: [2026], currencyCode: 'USD', language: 'en'),
+      entries: [entry('Income', 123456, income, DateTime(2026, 1, 1))], categoryNames: {}, accountNames: {});
+    final wb = Excel.decodeBytes(buildExcelReport(report));
+    for (final sheet in wb.tables.values) {
+      expect(sheet.cell(CellIndex.indexByString('A2')).value.toString(), contains('Currency USD'));
+    }
+    expect(report.years.single.incomeMinor, 123456);
+  });
   final entries = [
     entry('เงินเดือน', 2400050, income, DateTime(2024, 1, 1)),
     entry('อาหาร', 12345, expense, DateTime(2024, 2, 29)),

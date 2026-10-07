@@ -12,12 +12,14 @@ class ReportOptions {
     this.categoryId,
     this.includeCharts = true,
     this.language = 'th',
+    this.currencyCode = 'THB',
   }) : years = (years.toSet().toList()..sort());
   final List<int> years;
   final int? accountId;
   final int? categoryId;
   final bool includeCharts;
   final String language;
+  final String currencyCode;
 }
 
 class YearReport {
@@ -155,8 +157,8 @@ Uint8List buildExcelReport(ExcelReportData data) {
     row(sheet, 1, [
       text(
         label(
-          'สกุลเงิน THB · ยอดจากรายการที่เลือก',
-          'Currency THB · totals from selected transactions',
+          'สกุลเงิน ${data.options.currencyCode} · ยอดจากรายการที่เลือก',
+          'Currency ${data.options.currencyCode} · totals from selected transactions',
         ),
       ),
     ]);

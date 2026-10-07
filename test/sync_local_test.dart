@@ -103,33 +103,85 @@ void main() {
       expect(await SyncLocal(dbA).pendingCount(), 0);
     },
   );
-  test('receipt paths and device settings never appear in cloud', () async {
-    await FinanceRepository(dbA).setting('pin_hash', 'secret-pin');
-    await FinanceRepository(
-      dbA,
-    ).save(entry('Receipt', receipt: '/private/device/receipt.jpg'));
+  test('cloud receipt references and removal sync across devices', () async {
+    const receipt =
+        'firebase-storage://users/user/receipts/0123456789abcdef0123456789abcdef.jpg';
+    final repo = FinanceRepository(dbA);
+    await repo.save(entry('Cloud receipt', receipt: receipt));
     await exchange(dbA, cloud);
     await exchange(dbB, cloud);
     expect(
-      (await FinanceRepository(dbA).entries()).single.receiptPath,
-      '/private/device/receipt.jpg',
+      (await FinanceRepository(dbB).entries()).single.receiptPath,
+      receipt,
     );
+    final saved = (await repo.entries()).single;
+    await repo.save(
+      Entry.fromMap({...saved.toMap(), 'id': saved.id, 'receipt_path': ''}),
+    );
+    await exchange(dbA, cloud);
+    await exchange(dbB, cloud);
     expect(
       (await FinanceRepository(dbB).entries()).single.receiptPath,
       isEmpty,
     );
-    expect(
-      cloud.accounts['user']!.values.any(
-        (r) => r.data.containsKey('receipt_path'),
-      ),
-      isFalse,
-    );
-    expect(
-      cloud.accounts['user']!.values.any((r) => r.table == 'settings'),
-      isFalse,
-    );
-    expect(await FinanceRepository(dbB).settings(), isEmpty);
   });
+  test('category colors persist and sync across devices, including edits', () async {
+    final repo = FinanceRepository(dbA);
+    await repo.saveCategory(const Category(0, 'Custom color', expense, 'other', colorValue: 0xff2563eb));
+    await exchange(dbA, cloud);
+    await exchange(dbB, cloud);
+    final saved = (await repo.categories()).singleWhere((c) => c.name == 'Custom color');
+    expect((await FinanceRepository(dbB).categories()).singleWhere((c) => c.name == saved.name).colorValue, 0xff2563eb);
+    await repo.saveCategory(Category(saved.id, saved.name, saved.type, saved.icon, colorValue: 0xff7c3aed));
+    await a.close();
+    dbA = await a.open();
+    expect((await FinanceRepository(dbA).categories()).singleWhere((c) => c.name == saved.name).colorValue, 0xff7c3aed);
+    await exchange(dbA, cloud);
+    await exchange(dbB, cloud);
+    expect((await FinanceRepository(dbB).categories()).singleWhere((c) => c.name == saved.name).colorValue, 0xff7c3aed);
+  });
+  test('version 6 database upgrades without losing categories or entries', () async {
+    await FinanceRepository(dbA).save(entry('Preserved entry'));
+    await dbA.execute('ALTER TABLE categories DROP COLUMN color_value');
+    await dbA.setVersion(6);
+    await a.close();
+    dbA = await a.open();
+    expect(await dbA.getVersion(), 7);
+    expect((await FinanceRepository(dbA).entries()).single.title, 'Preserved entry');
+    expect((await FinanceRepository(dbA).categories()).every((c) => c.colorValue == null), isTrue);
+    await FinanceRepository(dbA).saveCategory(const Category(0, 'New color', income, 'other', colorValue: 0xff123456));
+    expect((await FinanceRepository(dbA).categories()).singleWhere((c) => c.name == 'New color').colorValue, 0xff123456);
+  });
+  test(
+    'local receipt paths and device settings never appear in cloud',
+    () async {
+      await FinanceRepository(dbA).setting('pin_hash', 'secret-pin');
+      await FinanceRepository(
+        dbA,
+      ).save(entry('Receipt', receipt: '/private/device/receipt.jpg'));
+      await exchange(dbA, cloud);
+      await exchange(dbB, cloud);
+      expect(
+        (await FinanceRepository(dbA).entries()).single.receiptPath,
+        '/private/device/receipt.jpg',
+      );
+      expect(
+        (await FinanceRepository(dbB).entries()).single.receiptPath,
+        isEmpty,
+      );
+      expect(
+        cloud.accounts['user']!.values.any(
+          (r) => r.data.containsKey('receipt_path'),
+        ),
+        isFalse,
+      );
+      expect(
+        cloud.accounts['user']!.values.any((r) => r.table == 'settings'),
+        isFalse,
+      );
+      expect(await FinanceRepository(dbB).settings(), isEmpty);
+    },
+  );
   test(
     'tombstones propagate and stale offline edits cannot resurrect a deletion',
     () async {

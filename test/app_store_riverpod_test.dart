@@ -104,6 +104,9 @@ void main() {
       await store.changeMonth(month);
       await store.setDarkMode(true);
       await store.setThemeColor('purple');
+      await store.setCurrency('USD');
+      await store.setCurrency('invalid');
+      expect(store.currencyCode, 'USD');
       await store.setLanguage('en');
       await store.setHideBalances(true);
       await store.setRemindersEnabled(false);
@@ -122,6 +125,7 @@ void main() {
       expect(next.darkMode, isTrue);
       expect(next.languageCode, 'en');
       expect(next.themeColor, 'purple');
+      expect(next.currencyCode, 'USD');
       expect(next.hideBalances, isTrue);
       expect(next.remindersEnabled, isFalse);
       expect(next.verifyPin('123456'), isTrue);

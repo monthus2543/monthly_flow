@@ -1,4 +1,5 @@
 import '../color/color.dart';
+import '../currency/app_currency.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
@@ -13,6 +14,14 @@ export '../color/color.dart';
 export 'app_alert.dart';
 export 'app_segmented_control.dart';
 export 'app_switch_tile.dart';
+
+Color categoryTextColor(BuildContext context, Category category) {
+  if (category.colorValue != null) return Color(category.colorValue!);
+  final dark = Theme.of(context).brightness == Brightness.dark;
+  return category.type == income
+      ? (dark ? AppColors.tealDark : AppColors.categoryIncome)
+      : (dark ? AppColors.errorDark : AppColors.categoryExpense);
+}
 
 List<AppSegment> transactionTypeSegments(BuildContext context) => [
   AppSegment(
@@ -63,7 +72,7 @@ LinearGradient appBackgroundGradient(BuildContext context) {
 
 String money(BuildContext context, int minor) => NumberFormat.currency(
   locale: Localizations.localeOf(context).toLanguageTag(),
-  symbol: '฿',
+  symbol: (Theme.of(context).extension<AppCurrency>() ?? const AppCurrency('THB')).symbol,
   decimalDigits: 2,
 ).format(minor / 100);
 
