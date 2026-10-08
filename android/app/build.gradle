@@ -9,7 +9,7 @@ if (file('google-services.json').exists()) {
 }
 
 android {
-    namespace 'com.example.monthly_flow'
+    namespace 'com.monthus2543.monthlyflow'
     compileSdk flutter.compileSdkVersion
     ndkVersion flutter.ndkVersion
 
@@ -19,7 +19,7 @@ android {
     }
 
     defaultConfig {
-        applicationId 'com.example.monthly_flow'
+        applicationId 'com.monthus2543.monthlyflow'
         minSdk Math.max(23, flutter.minSdkVersion)
         targetSdk flutter.targetSdkVersion
         versionCode flutter.versionCode

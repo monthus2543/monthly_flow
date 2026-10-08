@@ -1,69 +1,50 @@
-name: Build iOS
+name: Build iOS for AltStore
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      - "major/**"
-      - "feature/**"
-      - "hotfix/**"
-    paths-ignore:
-      - "**/*.md"
 
-concurrency:
-  group: ios-${{ github.ref }}
-  cancel-in-progress: true
+permissions:
+  contents: read
 
 jobs:
   build-ios:
-    name: Build iOS (unsigned)
     runs-on: macos-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
 
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v6
 
-      - name: Set up Flutter
+      - name: Setup Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: stable
           cache: true
 
-      - name: Show tool versions
-        run: |
-          flutter --version
-          xcodebuild -version
-
       - name: Install dependencies
         run: flutter pub get
 
-      - name: Read app version
-        id: app
-        shell: bash
-        run: |
-          VERSION=$(sed -nE 's/^version:[[:space:]]*([^+[:space:]]+).*/\1/p' pubspec.yaml)
-          if [ -z "$VERSION" ]; then
-            echo "Unable to read version from pubspec.yaml"
-            exit 1
-          fi
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-
-      - name: Build iOS release without code signing
+      - name: Build unsigned iOS app
         run: flutter build ios --release --no-codesign
 
-      - name: Package Runner.app
+      - name: Package IPA for AltStore
         shell: bash
         run: |
-          ditto -c -k --sequesterRsrc --keepParent \
-            build/ios/iphoneos/Runner.app \
-            "monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned.zip"
+          set -euo pipefail
 
-      - name: Upload iOS artifact
-        uses: actions/upload-artifact@v4
+          APP_PATH="build/ios/iphoneos/Runner.app"
+          test -d "$APP_PATH"
+
+          mkdir -p build/altstore/Payload
+          cp -R "$APP_PATH" build/altstore/Payload/
+
+          cd build/altstore
+          zip -r -y app-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v7
         with:
-          name: monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned
-          path: monthly-flow-ios-${{ steps.app.outputs.version }}-unsigned.zip
+          name: ios-altstore
+          path: build/altstore/app-unsigned.ipa
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 7
